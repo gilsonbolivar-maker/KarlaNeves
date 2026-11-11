@@ -1,7 +1,9 @@
-# Karla Neves · Clientes
+# Karla Neves · Acompanhamento de clientes
 
-App (PWA) de gestão de clientes para serviço com horário: agenda, confirmação por WhatsApp, a receber, aniversários e clientes sumidas.
+PWA para a Karla acompanhar as clientes que produzem vídeos para o Instagram.
 
-- Endereço: https://gilsonbolivar-maker.github.io/KarlaNeves/
-- Os dados ficam **só no celular** (localStorage). Use **Ajustes → Fazer backup** toda semana.
-- Versão exibida no canto inferior direito (`const VERSAO` no index.html e `C` no sw.js).
+- App da Karla: https://gilsonbolivar-maker.github.io/KarlaNeves/
+- Legendas (cópia para as clientes): https://gilsonbolivar-maker.github.io/KarlaNeves/legendas/
+- Fluxo da postagem: a enviar → enviado → gravado → postado.
+- O botão "Enviar para a cliente" manda pelo WhatsApp um link `legendas/#r=roteiro&t=título&k=whatsapp&n=nome`, que abre o roteiro no teleprompter do Legendas.
+- Os dados ficam só no celular (localStorage e IndexedDB). Faça backup toda semana em Ajustes (⚙️).
