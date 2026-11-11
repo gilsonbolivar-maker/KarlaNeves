@@ -82,7 +82,7 @@ label{display:block;font-size:13px;font-weight:700;color:var(--suave);margin:12p
 <div id="versao" data-versao></div>
 
 <script>
-const VERSAO='1.2.0';
+const VERSAO='1.3.0';
 document.getElementById('versao').textContent='v'+VERSAO;
 
 /* ---------- dados ---------- */
@@ -393,6 +393,49 @@ window.formCont=(kid,cidPre)=>{
     for(const a of (k.anexos||[]))await ARQ.del(a.id).catch(()=>{});D.conteudos=D.conteudos.filter(x=>x.id!==kid);salvar();fecha();render();toast('Apagado')};
 };
 
+/* ---------- DADOS DE EXEMPLO ---------- */
+window.carregaExemplo=()=>{
+  if(D.clientes.some(c=>c.demo))return toast('Os exemplos já estão carregados');
+  const h=hojeISO(),ano=new Date().getFullYear();
+  const md=n=>somaDias(h,n).slice(5);
+  const nomes=[['Ana Paula Ribeiro','Prefere atendimento de manhã. Gosta de esmalte nude.',md(3)],['Beatriz Santos','Alérgica a acetona forte. Usar removedor sem cheiro.','04-22'],
+    ['Camila Ferreira','Posta todo sábado. Perfil de confeitaria.','07-09'],['Daniela Moura','Sempre atrasa 10 minutos.','01-15'],['Elaine Costa','Indicou 3 clientes. Dar brinde.',md(0)],
+    ['Fernanda Lima','Loja de roupas no Instagram. Quer reels semanais.','11-30'],['Gabriela Rocha','Paga sempre no Pix.','09-03'],['Helena Duarte','Cliente nova. Veio pelo Instagram.',''],
+    ['Isabela Nunes','Sumiu depois de setembro.','03-18'],['Juliana Prado','Gosta de vídeos com música calma.','12-05']];
+  const cs=nomes.map((n,i)=>({id:id(),demo:true,nome:n[0],tel:'00 90000-00'+pad(i+1),aniver:n[2],obs:n[1],criado:somaDias(h,-120)}));
+  D.clientes.push(...cs);
+  const at=(i,d,hora,servico,valor,status,pago)=>D.atend.push({id:id(),demo:true,clienteId:cs[i].id,data:somaDias(h,d),hora,servico,valor,status,pago,obs:''});
+  // hoje
+  at(0,0,'09:00','Manicure',40,'marcado',false);at(1,0,'10:30','Pé e mão',70,'marcado',false);at(4,0,'15:00','Unha gel',90,'marcado',false);
+  // amanhã
+  at(2,1,'08:30','Manicure',40,'marcado',false);at(5,1,'14:00','Pé e mão',70,'marcado',false);
+  // próximos dias
+  at(6,2,'11:00','Unha gel',90,'marcado',false);at(9,3,'16:00','Manicure',40,'marcado',false);at(7,5,'10:00','Pé e mão',70,'marcado',false);
+  // passado: feitos, pagos e a receber, faltas
+  at(0,-14,'09:00','Manicure',40,'feito',true);at(1,-10,'10:30','Pé e mão',70,'feito',true);at(2,-7,'08:30','Manicure',40,'feito',false);
+  at(3,-5,'13:00','Unha gel',90,'feito',false);at(5,-3,'14:00','Pé e mão',70,'feito',true);at(6,-2,'11:00','Manicure',40,'faltou',false);
+  at(3,-1,'17:00','Manicure',40,'marcado',false);
+  // clientes sumidas
+  at(8,-62,'10:00','Unha gel',90,'feito',true);at(9,-50,'15:00','Pé e mão',70,'feito',true);
+  ['Manicure','Pé e mão','Unha gel'].forEach(s=>{if(!D.servicos.includes(s))D.servicos.push(s)});
+  const ct=(i,tipo,titulo,d,o)=>D.conteudos.push(Object.assign({id:id(),demo:true,clienteId:cs[i].id,tipo,titulo,data:somaDias(h,d),hora:'',repete:'nao',legenda:'',roteiro:'',links:'',anexos:[],status:'pendente'},o||{}));
+  ct(2,'post','Bolo de aniversário da semana',0,{legenda:'Bolo de ninho com morango 🍓 Encomendas pelo direct! #confeitaria #bolos',repete:'semanal'});
+  ct(5,'video','Provador: looks da semana',1,{roteiro:'1. Abrir mostrando a arara\n2. Provar 3 looks\n3. Falar o preço de cada um\n4. Chamar para o direct',links:'https://www.instagram.com/reel/exemplo1\nhttps://www.instagram.com/reel/exemplo2',repete:'semanal'});
+  ct(0,'post','Antes e depois',-2,{legenda:'Antes e depois que fala por si ✨ #unhas',status:'enviado'});
+  ct(9,'video','Rotina de skincare',3,{roteiro:'1. Bom dia com café\n2. Passo a passo dos produtos\n3. Resultado final',links:'https://www.instagram.com/reel/exemplo3'});
+  ct(5,'post','Promoção de fim de mês',6,{legenda:'Tudo com 20% OFF até domingo! 🛍️'});
+  ct(2,'post','Depoimento de cliente',-6,{legenda:'Olha o que a cliente falou 💬',status:'postado'});
+  const lb=(texto,d,o)=>D.lembretes.push(Object.assign({id:id(),demo:true,texto,data:somaDias(h,d),hora:'',repete:'nao',clienteId:'',feito:false},o||{}));
+  lb('Comprar acetona e algodão',0,{repete:'semanal'});lb('Pagar aluguel do espaço',-1,{hora:'10:00'});
+  lb('Mandar ideias de post para a Fernanda',1,{clienteId:cs[5].id});lb('Organizar agenda do mês',4);
+  salvar();render();toast('10 clientes de exemplo carregadas');
+};
+window.apagaExemplo=()=>{if(!confirm('Apagar todas as clientes de exemplo e tudo ligado a elas? Seus dados reais ficam.'))return;
+  const ids=new Set(D.clientes.filter(c=>c.demo).map(c=>c.id));
+  D.clientes=D.clientes.filter(c=>!c.demo);D.atend=D.atend.filter(a=>!a.demo&&!ids.has(a.clienteId));
+  D.conteudos=D.conteudos.filter(k=>!k.demo&&!ids.has(k.clienteId));D.lembretes=D.lembretes.filter(l=>!l.demo&&!ids.has(l.clienteId));
+  salvar();render();toast('Exemplos apagados')};
+
 /* ---------- CLIENTES ---------- */
 function vClientes(){
   const b=BUSCA.toLowerCase();
@@ -490,6 +533,9 @@ function vAjustes(){
   <div class="sub" style="margin-top:6px">Último backup: ${D.ultimoBackup?dataBR(D.ultimoBackup.slice(0,10)):'nunca'}</div>
   <div class="acoes"><button class="btn p" onclick="backup()">Fazer backup</button><button class="btn" onclick="$('#arq').click()">Restaurar backup</button></div>
   <input type="file" id="arq" accept=".json,application/json" style="display:none"></div>
+  <h2>Simulação</h2>
+  <div class="card">Carrega 10 clientes fictícias com agenda, pagamentos, conteúdos e lembretes, para testar. Os telefones são falsos.
+  <div class="acoes"><button class="btn p" onclick="carregaExemplo()">Carregar exemplos</button><button class="btn r" onclick="apagaExemplo()">Apagar exemplos</button></div></div>
   <h2>Negócio</h2>
   <div class="card"><label style="margin-top:0">Nome que aparece no topo e nas mensagens</label><input id="cNeg" value="${esc(c.negocio)}">
   <label>Avisar "sumida" depois de quantos dias sem vir</label><input id="cDias" type="number" inputmode="numeric" value="${c.diasSumida}"></div>
