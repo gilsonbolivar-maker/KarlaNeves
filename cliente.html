@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minha página</title>
+<meta name="theme-color" content="#7a3e55">
+<link rel="manifest" href="manifest-cliente.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Minha página">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header><button class="hbtn" id="atual" aria-label="Atualizar">⟳</button><h1 id="tNome">Minha página</h1><small id="tSub"></small></header>
+<main id="main" style="padding-bottom:40px"><div class="carregando">Carregando…</div></main>
+<div id="sheet"><div class="box" id="sbox"></div></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="comum.js"></script>
+<script>
+const VERSAO='3.0.0';
+const sb=window.SB_MOCK||supabase.createClient(KN.URL,KN.CHAVE,{auth:{persistSession:false}});
+let TOK=location.hash.slice(1).replace(/[^0-9a-f]/gi,'');
+try{if(TOK)localStorage.setItem('kn-token',TOK);else TOK=localStorage.getItem('kn-token')||''}catch(e){}
+let P=null,ABERTO={},VER_FEITAS=false;
+
+async function carregar(){
+  if(!TOK)return erro('Este link está incompleto. Peça o link da sua página para a sua orientadora.');
+  const {data,error}=await sb.rpc('portal',{tok:TOK});
+  if(error)return erro('Sem conexão agora. Verifique a internet e toque em ⟳.');
+  if(!data)return erro('Este link não vale mais. Peça um link novo para a sua orientadora.');
+  P=data;render();
+}
+function erro(t){$('#main').innerHTML=`<div class="aviso" style="margin-top:30px">${esc(t)}</div>`}
+$('#atual').onclick=async()=>{toast('Atualizando…');await carregar()};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&P)carregar()});
+
+function render(){
+  const nome=(P.cliente.nome||'').split(' ')[0];const m=P.mentora||{nome:'sua orientadora',zap:''};
+  $('#tNome').textContent='Olá, '+nome+' 👋';
+  $('#tSub').textContent='Acompanhamento com '+m.nome;
+  document.title='Minha página · '+m.nome;
+  const abertas=P.atividades.filter(a=>a.status!=='feito');const feitas=P.atividades.filter(a=>a.status==='feito').sort((x,y)=>(y.feito_em||'').localeCompare(x.feito_em||''));
+  const lemb=P.lembretes.filter(l=>!l.feito);const atras=abertas.filter(atrasada).length;
+  let o='';
+  if(lemb.length)o+=`<h2>Recados de ${esc(m.nome.split(' ')[0])}<span class="n">${lemb.length}</span></h2>`+lemb.map(l=>`<div class="card" style="border-left:4px solid var(--vinho)"><div class="row"><div class="grow">
+    <div style="white-space:pre-wrap">📌 ${esc(l.texto)}</div>${l.data?`<div class="sub">${quando(l.data)}</div>`:''}</div>
+    <button class="btn v" onclick="vi('${l.id}')">Ok, vi</button></div></div>`).join('');
+  o+=`<div class="resumo" style="margin-top:12px"><div class="card"><b>${abertas.length}</b><span class="sub">para fazer</span></div><div class="card"><b style="color:${atras?'var(--verm)':'var(--vinho)'}">${atras}</b><span class="sub">atrasadas</span></div><div class="card"><b>${feitas.length}</b><span class="sub">feitas (30 dias)</span></div></div>`;
+  o+=`<h2>Para fazer${abertas.length?`<span class="n">${abertas.length}</span>`:''}</h2>`;
+  o+=abertas.map(cardAtiv).join('')||'<div class="card" style="text-align:center">Tudo em dia! 🎉<div class="sub">Quando houver atividade nova, ela aparece aqui.</div></div>';
+  if(feitas.length)o+=`<h2 onclick="VER_FEITAS=!VER_FEITAS;render()" style="cursor:pointer">Feitas ${VER_FEITAS?'▾':'▸'}<span class="n">${feitas.length}</span></h2>`+(VER_FEITAS?feitas.map(cardAtiv).join(''):'');
+  if(m.zap)o+=`<div class="acoes" style="margin-top:20px"><button class="btn z full" onclick="falar()">💬 Falar com ${esc(m.nome.split(' ')[0])}</button></div>`;
+  o+=`<div class="card sub" style="margin-top:16px">📱 <b>Deixe esta página na tela inicial:</b><br>iPhone (Safari): Compartilhar → Adicionar à Tela de Início.<br>Android (Chrome): menu ⋮ → Adicionar à tela inicial.</div>
+  <div class="sub" style="text-align:center;margin-top:10px">v${VERSAO}</div>`;
+  $('#main').innerHTML=o;
+}
+function cardAtiv(a){
+  const at=atrasada(a),aberto=ABERTO[a.id]??(a.status!=='feito');
+  const passos=a.tipo==='video'?['pendente','gravado','feito']:['pendente','feito'];const i=passos.indexOf(a.status);
+  const tag=a.status==='feito'?`<span class="tag s-feito">${a.tipo==='tarefa'?'feito':'postado'} ✓</span>`:at?'<span class="tag s-atrasada">atrasada</span>':`<span class="tag s-${a.status}">${ETAPA[a.status]}</span>`;
+  let corpo='';
+  if(aberto){
+    if(a.roteiro)corpo+=`<label>${a.tipo==='video'?'Roteiro':a.tipo==='post'?'Orientações':'O que fazer'}</label><div class="caixa">${esc(a.roteiro)}</div>`;
+    if(a.legenda)corpo+=`<label>Legenda para o post</label><div class="caixa">${esc(a.legenda)}</div><div class="acoes"><button class="btn" onclick="copia('${a.id}')">📋 Copiar legenda</button></div>`;
+    if(a.links)corpo+=`<label>Referências</label>${linksHTML(a.links)}`;
+    if(a.nota_cliente)corpo+=`<label>Seu recado</label><div class="sub">💬 ${esc(a.nota_cliente)}</div>`;
+    let ac='';
+    if(a.status!=='feito'){
+      if(a.tipo==='video'&&a.roteiro)ac+=`<a class="btn p" href="${esc(linkLegendas(a,{tok:TOK,a:a.id,n:(P.mentora||{}).nome}))}">🎥 Gravar no Legendas</a>`;
+      if(a.tipo==='video'&&a.status==='pendente')ac+=`<button class="btn" onclick="marca('${a.id}','gravado')">Já gravei</button>`;
+      ac+=`<button class="btn vv" onclick="marca('${a.id}','feito')">✓ ${a.tipo==='tarefa'?'Feito':'Postei'}</button>`;
+    }
+    ac+=`<button class="btn" onclick="recado('${a.id}')">💬 Deixar recado</button>`;
+    corpo+=`<div class="acoes">${ac}</div>`;
+  }
+  return `<div class="card" style="${a.status==='feito'?'opacity:.8':''}"><div class="row" onclick="ABERTO['${a.id}']=${!aberto};render()" style="cursor:pointer">
+    <div class="grow"><div class="nome" style="white-space:normal">${TIPOS[a.tipo]} · ${esc(a.titulo)}</div>
+    <div class="sub">${a.status==='feito'?'Feito '+haQuanto(a.feito_em):at?'<b style="color:var(--verm)">Prazo era '+quando(a.prazo)+'</b>':'Prazo: '+quando(a.prazo)}</div></div>${tag}</div>
+    <div class="etapas">${passos.map((e,k)=>`<i class="${k<=i?'ok':''}"></i>`).join('')}</div>${corpo}</div>`;
+}
+window.copia=async id=>{const a=P.atividades.find(x=>x.id===id);try{await navigator.clipboard.writeText(a.legenda);toast('Legenda copiada. Cole no Instagram.')}catch(e){prompt('Copie a legenda:',a.legenda)}};
+window.vi=async id=>{const {error}=await sb.rpc('portal_lembrete',{tok:TOK,lembrete:id,marcado:true});if(error)return toast('Sem conexão. Tente de novo.');toast('Anotado 👍');carregar()};
+window.marca=async(id,st)=>{const a=P.atividades.find(x=>x.id===id);let link=null;
+  if(st==='feito'&&a.tipo!=='tarefa'){link=prompt('Postou! 🎉\nSe quiser, cole o link do post (no Instagram: ⋯ → Copiar link). Pode deixar em branco.','');if(link===null)return;link=link.trim()||null}
+  const {data,error}=await sb.rpc('portal_atividade',{tok:TOK,atividade:id,novo_status:st,nota:null,link});
+  if(error||!data)return toast('Não salvou. Verifique a internet e tente de novo.');
+  toast(st==='gravado'?'Boa! Agora é postar 💪':'Arrasou! 🎉 Sua orientadora já está vendo.');ABERTO[id]=st!=='feito';carregar()};
+window.recado=id=>{const a=P.atividades.find(x=>x.id===id);
+  $('#sbox').innerHTML=`<button class="fecha" onclick="$('#sheet').classList.remove('on')">×</button><h3>Recado sobre "${esc(a.titulo)}"</h3>
+  <div class="sub">Sua orientadora vê este recado no painel dela.</div><textarea id="rTxt" style="margin-top:10px;min-height:110px" placeholder="Ex.: Gravei mas não gostei da luz, posto amanhã.">${esc(a.nota_cliente)}</textarea>
+  <div class="acoes"><button class="btn p full" id="rOk">Enviar recado</button></div>`;$('#sheet').classList.add('on');
+  $('#rOk').onclick=async()=>{const {data,error}=await sb.rpc('portal_atividade',{tok:TOK,atividade:id,novo_status:a.status,nota:$('#rTxt').value.trim(),link:null});
+    if(error||!data)return toast('Não enviou. Tente de novo.');$('#sheet').classList.remove('on');toast('Recado enviado');carregar()}};
+$('#sheet').onclick=e=>{if(e.target.id==='sheet')$('#sheet').classList.remove('on')};
+window.falar=()=>{const m=P.mentora;abreZap(m.zap,`Oi, ${m.nome.split(' ')[0]}! Aqui é a ${P.cliente.nome.split(' ')[0]}.`)};
+
+carregar();
+if('serviceWorker' in navigator&&!window.SB_MOCK)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
