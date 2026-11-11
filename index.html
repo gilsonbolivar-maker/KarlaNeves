@@ -67,31 +67,33 @@ label{display:block;font-size:13px;font-weight:700;color:var(--suave);margin:12p
 </style>
 </head>
 <body>
-<header><h1 id="tNeg">Karla Neves</h1><small id="tSub"></small></header>
+<header><button id="engr" style="float:right;border:0;background:rgba(255,255,255,.15);color:#fff;border-radius:10px;font-size:20px;padding:6px 10px;margin-top:2px">⚙️</button><h1 id="tNeg">Karla Neves</h1><small id="tSub"></small></header>
 <main id="main"></main>
 <button class="fab" id="fab">+ Agendar</button>
 <nav>
   <button data-v="hoje" class="on"><span>☀️</span>Hoje</button>
   <button data-v="agenda"><span>📅</span>Agenda</button>
+  <button data-v="conteudo"><span>📸</span>Conteúdo</button>
   <button data-v="lembretes"><span>📝</span>Lembretes</button>
   <button data-v="clientes"><span>👩</span>Clientes</button>
-  <button data-v="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
 <div id="sheet"><div class="box" id="sbox"></div></div>
 <div id="toast"></div>
 <div id="versao" data-versao></div>
 
 <script>
-const VERSAO='1.1.0';
+const VERSAO='1.2.0';
 document.getElementById('versao').textContent='v'+VERSAO;
 
 /* ---------- dados ---------- */
 const CHAVE='karla-clientes-v1';
-const PADRAO={clientes:[],atend:[],lembretes:[],servicos:['Atendimento'],config:{
+const PADRAO={clientes:[],atend:[],lembretes:[],conteudos:[],servicos:['Atendimento'],config:{
   negocio:'Karla Neves',diasSumida:45,
   msgConfirma:'Oi, {nome}! Tudo bem? Passando para confirmar seu horário {quando} às {hora} ({servico}). Posso confirmar? 😊',
   msgRetorno:'Oi, {nome}! Tudo bem? Faz um tempinho que você não vem. Quer agendar um horário esta semana? 💜',
   msgAniver:'Feliz aniversário, {nome}! 🎉 Muita saúde e alegria. Um beijo, {negocio}.',
+  msgPost:'Oi, {nome}! 📸 Lembrete: {prazo} é dia de postar no Instagram ({titulo}).\n\nLegenda:\n{legenda}',
+  msgVideo:'Oi, {nome}! 🎬 Lembrete: gravar o vídeo "{titulo}" até {prazo}.\n\nRoteiro:\n{roteiro}\n\nReferências:\n{links}',
   msgCobra:'Oi, {nome}! Ficou pendente o valor de R$ {valor} do atendimento de {data}. Pode me mandar quando der? Obrigada!'
 },ultimoBackup:null};
 let D;
@@ -99,7 +101,7 @@ function carregar(){try{D=JSON.parse(localStorage.getItem(CHAVE))}catch(e){D=nul
   if(!D)D=JSON.parse(JSON.stringify(PADRAO));
   D.config=Object.assign({},PADRAO.config,D.config||{});
   D.servicos=D.servicos&&D.servicos.length?D.servicos:['Atendimento'];
-  D.lembretes=D.lembretes||[];}
+  D.lembretes=D.lembretes||[];D.conteudos=D.conteudos||[];}
 function salvar(){try{localStorage.setItem(CHAVE,JSON.stringify(D))}catch(e){toast('Erro ao salvar!')}}
 carregar();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
@@ -120,8 +122,8 @@ const cli=i=>D.clientes.find(c=>c.id===i)||{nome:'(cliente apagada)',tel:''};
 function quando(s){const d=difDias(hojeISO(),s);return d===0?'hoje':d===1?'amanhã':'no dia '+dataBR(s)}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
 function telZap(t){let d=String(t||'').replace(/\D/g,'');if(!d)return'';if(d.length<=11)d='55'+d;return d}
-function msg(mod,c,a){return mod.replace(/\{(\w+)\}/g,(m,k)=>({nome:(c.nome||'').split(' ')[0],negocio:D.config.negocio,
-  quando:a?quando(a.data):'',data:a?dataBR(a.data):'',hora:a?a.hora:'',servico:a?a.servico:'',valor:a?reais(a.valor):''}[k]??m))}
+function msg(mod,c,a,ex){return mod.replace(/\{(\w+)\}/g,(m,k)=>(Object.assign({nome:(c.nome||'').split(' ')[0],negocio:D.config.negocio,
+  quando:a?quando(a.data):'',data:a?dataBR(a.data):'',hora:a?a.hora:'',servico:a?a.servico:'',valor:a?reais(a.valor):''},ex||{})[k]??m))}
 function zap(c,texto){const t=telZap(c.tel);if(!t){toast('Cliente sem WhatsApp cadastrado');return}
   window.open('https://wa.me/'+t+'?text='+encodeURIComponent(texto),'_blank')}
 function ultimaVisita(cid){let u=null;D.atend.forEach(a=>{if(a.clienteId===cid&&a.status==='feito'&&(!u||a.data>u))u=a.data});return u}
@@ -133,14 +135,16 @@ let VIEW='hoje',BUSCA='',VER_PASSADOS=false;
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));render();scrollTo(0,0)});
 $('#fab').onclick=()=>formAtend();
+window.irAjustes=()=>{VIEW='ajustes';document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));render();scrollTo(0,0)};
+$('#engr').onclick=irAjustes;
 
 function render(){
   $('#tNeg').textContent=D.config.negocio||'Clientes';
   $('#tSub').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
   $('#fab').style.display=VIEW==='ajustes'?'none':'';
-  $('#fab').textContent=VIEW==='clientes'?'+ Cliente':VIEW==='lembretes'?'+ Lembrete':'+ Agendar';
-  $('#fab').onclick=VIEW==='clientes'?()=>formCliente():VIEW==='lembretes'?()=>formLemb():()=>formAtend();
-  ({hoje:vHoje,agenda:vAgenda,lembretes:vLembretes,clientes:vClientes,ajustes:vAjustes})[VIEW]();
+  $('#fab').textContent=VIEW==='clientes'?'+ Cliente':VIEW==='lembretes'?'+ Lembrete':VIEW==='conteudo'?'+ Conteúdo':'+ Agendar';
+  $('#fab').onclick=VIEW==='clientes'?()=>formCliente():VIEW==='lembretes'?()=>formLemb():VIEW==='conteudo'?()=>formCont():()=>formAtend();
+  ({hoje:vHoje,agenda:vAgenda,conteudo:vConteudo,lembretes:vLembretes,clientes:vClientes,ajustes:vAjustes})[VIEW]();
 }
 
 /* ---------- cartões ---------- */
@@ -182,6 +186,8 @@ function vHoje(){
   if(!D.clientes.length)o+=`<div class="card"><b>Comece por aqui:</b><br>1. Toque em <b>Clientes</b> e cadastre suas clientes.<br>2. Depois use <b>+ Agendar</b> para marcar os horários.<br>3. Esta tela mostra o que fazer no dia.</div>`;
   const lembHoje=D.lembretes.filter(l=>!l.feito&&(!l.data||l.data<=h)).sort(ordLemb);
   if(lembHoje.length)o+=sec('Lembretes',lembHoje.length,lembHoje.map(cardLemb).join(''));
+  const contHoje=D.conteudos.filter(k=>k.status!=='postado'&&k.data&&k.data<=am).sort(ordCont);
+  if(contHoje.length)o+=sec('Conteúdo das clientes',contHoje.length,contHoje.map(cardCont).join(''));
   o+=sec('Hoje',deHoje.length,deHoje.map(a=>cardAt(a)).join('')||'<div class="vazio">Nenhum horário hoje.</div>');
   o+=sec('Amanhã · confirmar',deAmanha.length,deAmanha.map(a=>cardAt(a)).join('')||'<div class="vazio">Nada marcado para amanhã.</div>');
   if(esqueceu.length)o+=sec('Ficou sem marcar se veio',esqueceu.length,esqueceu.map(a=>cardAt(a,'data')).join(''));
@@ -189,7 +195,7 @@ function vHoje(){
   if(aniv.length)o+=sec('Aniversários (7 dias)',aniv.length,aniv.map(x=>cardCli(x.c,x.dd===0?'🎂 É hoje!':'🎂 '+dataBR(x.s).slice(0,5)+' · em '+x.dd+' dia(s)',`<button class="btn z" onclick="zapCli('${x.c.id}','aniver')">Parabéns</button>`)).join(''));
   if(sumidas.length)o+=sec(`Sumidas (+${D.config.diasSumida} dias)`,sumidas.length,sumidas.map(x=>cardCli(x.c,'Última vez: '+dataBR(x.u)+' · há '+difDias(x.u,h)+' dias',`<button class="btn z" onclick="zapCli('${x.c.id}','retorno')">Chamar</button>`)).join(''));
   o+=`<h2>Este mês</h2><div class="resumo"><div class="card"><b>${feitosMes.length}</b><span class="sub">atendimentos</span></div><div class="card"><b>R$ ${reais(recebido)}</b><span class="sub">recebido</span></div></div>`;
-  if(D.clientes.length&&(!D.ultimoBackup||difDias(D.ultimoBackup.slice(0,10),h)>=7))o+=`<div class="aviso">⚠️ Faz mais de 7 dias sem backup. Os dados ficam só neste celular. <a href="#" onclick="VIEW='ajustes';document.querySelector('[data-v=ajustes]').click();return false">Fazer backup</a></div>`;
+  if(D.clientes.length&&(!D.ultimoBackup||difDias(D.ultimoBackup.slice(0,10),h)>=7))o+=`<div class="aviso">⚠️ Faz mais de 7 dias sem backup. Os dados ficam só neste celular. <a href="#" onclick="irAjustes();return false">Fazer backup</a></div>`;
   $('#main').innerHTML=o;
 }
 function sec(t,n,html){return `<h2>${t}${n?`<span class="n">${n}</span>`:''}</h2>${html}`}
@@ -271,6 +277,122 @@ async function calendario(l){
   toast('Abra o arquivo para adicionar ao calendário');
 }
 
+/* ---------- ARQUIVOS (IndexedDB) ---------- */
+const ARQ=(()=>{let dbp=null;
+  function db(){return dbp||(dbp=new Promise((ok,er)=>{const r=indexedDB.open('karla-arquivos',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>er(r.error)}))}
+  async function op(modo,fn){const d=await db();return new Promise((ok,er)=>{const t=d.transaction('f',modo);const s=t.objectStore('f');const r=fn(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>er(t.error)})}
+  return{put:(k,v)=>op('readwrite',s=>s.put(v,k)),get:k=>op('readonly',s=>s.get(k)),del:k=>op('readwrite',s=>s.delete(k))};
+})();
+const tamTxt=b=>b>1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+const blobB64=b=>new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(b)});
+const b64Blob=async u=>(await fetch(u)).blob();
+
+/* ---------- CONTEÚDO (Instagram) ---------- */
+const TIPO={post:'📸 Post',video:'🎬 Vídeo'};
+const STC={pendente:'pendente',enviado:'lembrada',postado:'postado'};
+let VER_POSTADOS=false;
+function ordCont(a,b){return ((a.data||'9999')+(a.hora||'')).localeCompare((b.data||'9999')+(b.hora||''))}
+function extraCont(k){return{titulo:k.titulo||(k.tipo==='video'?'vídeo':'post'),legenda:k.legenda||'',roteiro:k.roteiro||'',links:k.links||'',
+  prazo:k.data?quando(k.data):'',data:k.data?dataBR(k.data):'',hora:k.hora||''}}
+function cardCont(k){
+  const h=hojeISO();const c=cli(k.clienteId);const atras=k.data&&k.data<h&&k.status!=='postado';
+  const q=k.data?(k.data===h?'Hoje':k.data===somaDias(h,1)?'Amanhã':dataBR(k.data))+(k.hora?' às '+k.hora:''):'Sem prazo';
+  const n=(k.anexos||[]).length;
+  let ac='';
+  if(k.status!=='postado'){
+    ac+=`<button class="btn z" onclick="lembraCont('${k.id}')">Lembrar</button>`;
+    if(n||k.legenda||k.roteiro)ac+=`<button class="btn" onclick="enviaCont('${k.id}')">Enviar ${n?'arquivo':'texto'}</button>`;
+    ac+=`<button class="btn v" onclick="postouCont('${k.id}')">✓ ${k.tipo==='video'?'Gravou':'Postou'}</button>`;
+  }
+  return `<div class="card" style="${k.status==='postado'?'opacity:.6':''}"><div class="row" onclick="formCont('${k.id}')">
+    <div class="grow"><div class="nome">${TIPO[k.tipo]} · ${esc(c.nome)}</div>
+    <div class="sub" style="white-space:normal">${k.titulo?esc(k.titulo)+' · ':''}${atras?'<b style="color:var(--verm)">Atrasado · </b>':''}${q}${n?' · 📎 '+n:''}${k.repete&&k.repete!=='nao'?' · 🔁':''}</div></div>
+    <span class="tag t-${k.status==='postado'?'feito':k.status==='enviado'?'marcado':'pagar'}">${STC[k.status]}</span></div>
+    ${ac?`<div class="acoes">${ac}</div>`:''}</div>`;
+}
+function vConteudo(){
+  const lista=D.conteudos.filter(k=>VER_POSTADOS?k.status==='postado':k.status!=='postado').sort(ordCont);
+  if(VER_POSTADOS)lista.reverse();
+  let o=`<div class="chips" style="margin:6px 2px"><button class="chip ${!VER_POSTADOS?'on':''}" onclick="VER_POSTADOS=false;render()">A fazer</button><button class="chip ${VER_POSTADOS?'on':''}" onclick="VER_POSTADOS=true;render()">Feitos</button></div>`;
+  if(!lista.length)o+=`<div class="vazio" style="margin-top:14px">${VER_POSTADOS?'Nada feito ainda.':'Nada pendente. Toque em <b>+ Conteúdo</b>.'}</div>`;
+  o+=lista.slice(0,200).map(cardCont).join('');
+  $('#main').innerHTML=o;
+}
+window.lembraCont=kid=>{const k=D.conteudos.find(x=>x.id===kid),c=cli(k.clienteId);
+  zap(c,msg(k.tipo==='video'?D.config.msgVideo:D.config.msgPost,c,null,extraCont(k)).replace(/\n{3,}/g,'\n\n').trim());
+  if(k.status==='pendente'){k.status='enviado';salvar();setTimeout(render,500)}};
+window.enviaCont=async kid=>{const k=D.conteudos.find(x=>x.id===kid);
+  const texto=k.tipo==='video'?[k.titulo,k.roteiro&&'Roteiro:\n'+k.roteiro,k.links&&'Referências:\n'+k.links].filter(Boolean).join('\n\n'):k.legenda;
+  const files=[];for(const a of (k.anexos||[])){const r=await ARQ.get(a.id);if(r)files.push(new File([r.blob],a.nome,{type:a.tipo}))}
+  try{await navigator.clipboard.writeText(texto||'')}catch(e){}
+  if(navigator.share){try{const d=files.length?{files,text:texto}:{text:texto};
+    if(!files.length||(navigator.canShare&&navigator.canShare({files}))){await navigator.share(d);if(texto)toast('Texto também copiado: cole se não aparecer');return}}catch(e){if(e.name==='AbortError')return}}
+  files.forEach(f=>{const u=URL.createObjectURL(f);const l=document.createElement('a');l.href=u;l.download=f.name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),3000)});
+  toast(files.length?'Arquivo baixado e texto copiado':'Texto copiado');
+};
+window.postouCont=kid=>{const k=D.conteudos.find(x=>x.id===kid);k.status='postado';k.feitoEm=hojeISO();
+  if(k.repete&&k.repete!=='nao'&&!k.proxCriado){const base=k.data||hojeISO();
+    const prox=k.repete==='semanal'?somaDias(base,7):k.repete==='quinzenal'?somaDias(base,14):(()=>{const d=new Date(base+'T12:00');d.setMonth(d.getMonth()+1);return iso(d)})();
+    D.conteudos.push({id:id(),clienteId:k.clienteId,tipo:k.tipo,titulo:k.titulo,data:prox,hora:k.hora,repete:k.repete,legenda:'',roteiro:'',links:k.links||'',anexos:[],status:'pendente'});
+    k.proxCriado=true;toast('Feito! Próximo: '+dataBR(prox))}else toast('Marcado como feito');
+  salvar();render()};
+
+window.formCont=(kid,cidPre)=>{
+  if(!kid&&!D.clientes.length){toast('Cadastre uma cliente primeiro');return formCliente(null,c=>formCont(null,c.id))}
+  const k=kid?D.conteudos.find(x=>x.id===kid):{clienteId:cidPre||'',tipo:'post',titulo:'',data:hojeISO(),hora:'',repete:'nao',legenda:'',roteiro:'',links:'',anexos:[],status:'pendente'};
+  let tipo=k.tipo;let anexos=(k.anexos||[]).slice();const novos={};const removidos=[];
+  const opts=D.clientes.slice().sort((x,y)=>x.nome.localeCompare(y.nome,'pt')).map(c=>`<option value="${c.id}" ${c.id===k.clienteId?'selected':''}>${esc(c.nome)}</option>`).join('');
+  abre(`<h3>${kid?'Conteúdo':'Novo conteúdo'}</h3>
+  <label>Tipo</label><div class="chips" id="kTipo">${Object.entries(TIPO).map(([t,v])=>`<button class="chip ${tipo===t?'on':''}" data-t="${t}">${v}</button>`).join('')}</div>
+  <label>Cliente</label><select id="kCli"><option value="">Escolha…</option>${opts}</select>
+  <label>Título / tema</label><input id="kTit" value="${esc(k.titulo)}" placeholder="Ex.: Antes e depois, Dica da semana">
+  <div class="duo"><div><label>Prazo</label><input id="kData" type="date" value="${k.data||''}"></div><div><label>Hora (opcional)</label><input id="kHora" type="time" value="${esc(k.hora||'')}"></div></div>
+  <label>Repetir</label><select id="kRep">${[['nao','Não repete'],['semanal','Toda semana'],['quinzenal','A cada 15 dias'],['mensal','Todo mês']].map(([v,t])=>`<option value="${v}" ${k.repete===v?'selected':''}>${t}</option>`).join('')}</select>
+  <div id="kPost">
+    <label>Arquivos (foto ou vídeo para postar)</label>
+    <div id="kAnx"></div>
+    <button class="btn" onclick="$('#kFile').click()">📎 Anexar arquivo</button>
+    <input type="file" id="kFile" accept="image/*,video/*" multiple style="display:none">
+    <label>Legenda</label><textarea id="kLeg" style="min-height:120px" placeholder="Texto da legenda, com hashtags">${esc(k.legenda)}</textarea>
+  </div>
+  <div id="kVid">
+    <label>Roteiro</label><textarea id="kRot" style="min-height:140px" placeholder="1. Abertura...&#10;2. ...&#10;3. Chamada final">${esc(k.roteiro)}</textarea>
+    <label>Links de referência (um por linha)</label><textarea id="kLnk" placeholder="https://instagram.com/reel/...">${esc(k.links)}</textarea>
+    <div id="kLnkV"></div>
+  </div>
+  <label>Situação</label><div class="chips" id="kSt">${Object.entries(STC).map(([s,t])=>`<button class="chip ${k.status===s?'on':''}" data-s="${s}">${t}</button>`).join('')}</div>
+  <div class="acoes"><button class="btn p full" id="kOk">Salvar</button></div>
+  ${kid?`<div class="acoes"><button class="btn r" id="kDel">Apagar conteúdo</button></div>`:''}`);
+  let st=k.status;
+  const mostra=()=>{$('#kPost').style.display=tipo==='post'?'':'none';$('#kVid').style.display=tipo==='video'?'':'none'};mostra();
+  document.querySelectorAll('#kTipo .chip').forEach(b=>b.onclick=()=>{tipo=b.dataset.t;document.querySelectorAll('#kTipo .chip').forEach(x=>x.classList.toggle('on',x===b));mostra()});
+  document.querySelectorAll('#kSt .chip').forEach(b=>b.onclick=()=>{st=b.dataset.s;document.querySelectorAll('#kSt .chip').forEach(x=>x.classList.toggle('on',x===b))});
+  const links=()=>{const ls=$('#kLnk').value.split('\n').map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x));
+    $('#kLnkV').innerHTML=ls.map(u=>`<div class="sub" style="margin:4px 2px"><a href="${esc(u)}" target="_blank" rel="noopener">🔗 ${esc(u.replace(/^https?:\/\/(www\.)?/,'').slice(0,45))}</a></div>`).join('')};
+  $('#kLnk').oninput=links;links();
+  const urls=[];
+  const desenha=async()=>{urls.forEach(u=>URL.revokeObjectURL(u));urls.length=0;let o='';
+    for(const a of anexos){const r=novos[a.id]||(await ARQ.get(a.id))?.blob;let th='📄';
+      if(r){const u=URL.createObjectURL(r);urls.push(u);th=a.tipo.startsWith('image/')?`<img src="${u}" style="width:52px;height:52px;object-fit:cover;border-radius:8px">`:a.tipo.startsWith('video/')?`<video src="${u}#t=0.5" muted playsinline style="width:52px;height:52px;object-fit:cover;border-radius:8px"></video>`:'📄';
+        th=`<a href="${u}" target="_blank">${th}</a>`}
+      o+=`<div class="row card" style="padding:8px">${th}<div class="grow"><div class="sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.nome)}</div><div class="sub">${tamTxt(a.tam)}</div></div><button class="btn r" data-rm="${a.id}">✕</button></div>`}
+    $('#kAnx').innerHTML=o;
+    $('#kAnx').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const i=b.dataset.rm;anexos=anexos.filter(a=>a.id!==i);if(novos[i])delete novos[i];else removidos.push(i);desenha()})};
+  desenha();
+  $('#kFile').onchange=e=>{for(const f of e.target.files){const i=id();novos[i]=f;anexos.push({id:i,nome:f.name,tipo:f.type||'application/octet-stream',tam:f.size})}e.target.value='';desenha()};
+  $('#kOk').onclick=async()=>{
+    const clienteId=$('#kCli').value;if(!clienteId)return toast('Escolha a cliente');
+    $('#kOk').disabled=true;$('#kOk').textContent='Salvando…';
+    try{for(const i in novos)await ARQ.put(i,{blob:novos[i]});for(const i of removidos)await ARQ.del(i)}
+    catch(e){$('#kOk').disabled=false;$('#kOk').textContent='Salvar';return toast('Sem espaço para o arquivo no celular')}
+    const dados={clienteId,tipo,titulo:$('#kTit').value.trim(),data:$('#kData').value,hora:$('#kHora').value,repete:$('#kRep').value,
+      legenda:$('#kLeg').value,roteiro:$('#kRot').value,links:$('#kLnk').value.trim(),anexos,status:st};
+    if(kid)Object.assign(k,dados);else D.conteudos.push({id:id(),...dados});
+    salvar();fecha();render();toast('Conteúdo salvo')};
+  if(kid)$('#kDel').onclick=async()=>{if(!confirm('Apagar este conteúdo e os arquivos dele?'))return;
+    for(const a of (k.anexos||[]))await ARQ.del(a.id).catch(()=>{});D.conteudos=D.conteudos.filter(x=>x.id!==kid);salvar();fecha();render();toast('Apagado')};
+};
+
 /* ---------- CLIENTES ---------- */
 function vClientes(){
   const b=BUSCA.toLowerCase();
@@ -317,7 +439,8 @@ window.verCliente=cid=>{
   <div class="sub">${c.tel?'📱 '+esc(c.tel):'Sem telefone'}${c.aniver?' · 🎂 '+c.aniver.split('-').reverse().join('/'):''}</div>
   ${c.obs?`<div class="card" style="margin-top:10px">📝 ${esc(c.obs).replace(/\n/g,'<br>')}</div>`:''}
   <div class="resumo" style="margin-top:10px"><div class="card"><b>${feitos.length}</b><span class="sub">atendimentos${faltas?' · '+faltas+' falta(s)':''}</span></div><div class="card"><b>R$ ${reais(total)}</b><span class="sub">no total</span></div></div>
-  <div class="acoes"><button class="btn z" onclick="zapCli('${cid}','livre')">WhatsApp</button><button class="btn p" onclick="formAtend(null,'${cid}')">Agendar</button><button class="btn" onclick="formCliente('${cid}')">Editar</button></div>
+  <div class="acoes"><button class="btn z" onclick="zapCli('${cid}','livre')">WhatsApp</button><button class="btn p" onclick="formAtend(null,'${cid}')">Agendar</button><button class="btn" onclick="formCont(null,'${cid}')">+ Conteúdo</button><button class="btn" onclick="formCliente('${cid}')">Editar</button></div>
+  ${(()=>{const ks=D.conteudos.filter(k=>k.clienteId===cid).sort(ordCont).reverse().slice(0,20);return ks.length?'<h2>Conteúdo</h2>'+ks.map(k=>`<div class="hist" onclick="formCont('${k.id}')"><b>${TIPO[k.tipo]}</b> · ${esc(k.titulo||'')} ${k.data?'· '+dataBR(k.data):''} <span class="tag t-${k.status==='postado'?'feito':'pagar'}">${STC[k.status]}</span></div>`).join(''):''})()}
   <h2>Histórico</h2>${hs.map(a=>`<div class="hist" onclick="formAtend('${a.id}')"><b>${dataBR(a.data)} ${esc(a.hora||'')}</b> · ${esc(a.servico||'')} ${Number(a.valor)?'· R$ '+reais(a.valor):''} <span class="tag t-${a.status}">${a.status}</span></div>`).join('')||'<div class="vazio">Nenhum atendimento ainda.</div>'}
   <div class="acoes" style="margin-top:20px"><button class="btn r" onclick="apagaCliente('${cid}')">Apagar cliente</button></div>`);
 };
@@ -375,7 +498,10 @@ function vAjustes(){
   <label>Confirmar horário</label><textarea id="mConf">${esc(c.msgConfirma)}</textarea>
   <label>Chamar cliente sumida</label><textarea id="mRet">${esc(c.msgRetorno)}</textarea>
   <label>Aniversário</label><textarea id="mAni">${esc(c.msgAniver)}</textarea>
-  <label>Cobrar pagamento</label><textarea id="mCob">${esc(c.msgCobra)}</textarea></div>
+  <label>Cobrar pagamento</label><textarea id="mCob">${esc(c.msgCobra)}</textarea>
+  <div class="sub" style="margin-top:12px">Para conteúdo: {titulo} {prazo} {legenda} {roteiro} {links}</div>
+  <label>Lembrar de postar</label><textarea id="mPost" style="min-height:100px">${esc(c.msgPost)}</textarea>
+  <label>Lembrar de gravar vídeo</label><textarea id="mVid" style="min-height:100px">${esc(c.msgVideo)}</textarea></div>
   <div class="acoes"><button class="btn p full" onclick="salvaAjustes()">Salvar ajustes</button></div>
   <h2>Instalar no celular</h2>
   <div class="card sub">Android (Chrome): menu ⋮ → <b>Adicionar à tela inicial</b>.<br>iPhone (Safari): botão Compartilhar → <b>Adicionar à Tela de Início</b>.</div>
@@ -383,19 +509,23 @@ function vAjustes(){
   $('#arq').onchange=restaurar;
 }
 window.salvaAjustes=()=>{Object.assign(D.config,{negocio:$('#cNeg').value.trim()||'Clientes',diasSumida:Math.max(1,parseInt($('#cDias').value)||45),
-  msgConfirma:$('#mConf').value,msgRetorno:$('#mRet').value,msgAniver:$('#mAni').value,msgCobra:$('#mCob').value});salvar();render();toast('Ajustes salvos')};
+  msgConfirma:$('#mConf').value,msgRetorno:$('#mRet').value,msgAniver:$('#mAni').value,msgCobra:$('#mCob').value,msgPost:$('#mPost').value,msgVideo:$('#mVid').value});salvar();render();toast('Ajustes salvos')};
 window.backup=async()=>{
   D.ultimoBackup=new Date().toISOString();salvar();
   const nome='backup-clientes-'+hojeISO()+'.json';
-  const blob=new Blob([JSON.stringify(D,null,1)],{type:'application/json'});
+  toast('Preparando backup…');
+  const arquivos={};for(const k of D.conteudos)for(const a of (k.anexos||[])){try{const r=await ARQ.get(a.id);if(r)arquivos[a.id]=await blobB64(r.blob)}catch(e){}}
+  const blob=new Blob([JSON.stringify(Object.assign({},D,{arquivos}))],{type:'application/json'});
   const file=new File([blob],nome,{type:'application/json'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:nome});render();toast('Backup feito');return}}catch(e){if(e.name==='AbortError'){return}}
   const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download=nome;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);render();toast('Backup baixado');
 };
 function restaurar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const n=JSON.parse(r.result);if(!Array.isArray(n.clientes)||!Array.isArray(n.atend))throw 0;
+  r.onload=async()=>{try{const n=JSON.parse(r.result);if(!Array.isArray(n.clientes)||!Array.isArray(n.atend))throw 0;
     if(!confirm('Restaurar este backup? Ele SUBSTITUI os dados atuais ('+n.clientes.length+' clientes, '+n.atend.length+' atendimentos).'))return;
-    D=n;D.config=Object.assign({},PADRAO.config,D.config||{});D.servicos=D.servicos||['Atendimento'];D.lembretes=D.lembretes||[];salvar();render();toast('Backup restaurado')}catch(x){toast('Arquivo inválido')}};
+    D=n;D.config=Object.assign({},PADRAO.config,D.config||{});D.servicos=D.servicos||['Atendimento'];D.lembretes=D.lembretes||[];D.conteudos=D.conteudos||[];
+    const arq=D.arquivos||{};delete D.arquivos;for(const i in arq){try{await ARQ.put(i,{blob:await b64Blob(arq[i])})}catch(e){}}
+    salvar();render();toast('Backup restaurado')}catch(x){toast('Arquivo inválido')}};
   r.readAsText(f)}
 
 render();
