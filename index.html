@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Karla Neves · Clientes</title>
+<meta name="theme-color" content="#7a3e55">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Clientes">
+<style>
+:root{--vinho:#7a3e55;--vinho2:#5e2c41;--rosa:#f6e9ee;--creme:#fbf8f6;--texto:#2b2226;--suave:#7c6c73;--linha:#eadde2;--verde:#2f8f5b;--verm:#c0392b;--amar:#c98a12;--zap:#1fa855}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--creme);color:var(--texto);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--vinho);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+header h1{margin:0;font-size:19px;font-weight:700}
+header small{opacity:.8;font-size:13px}
+main{padding:12px 12px 110px;max-width:640px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:#fff;border-top:1px solid var(--linha);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:9px 0 8px;font-size:12px;color:var(--suave);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:21px;line-height:1}
+nav button.on{color:var(--vinho);font-weight:700}
+h2{font-size:15px;margin:18px 4px 8px;color:var(--vinho2);display:flex;justify-content:space-between;align-items:center}
+h2 .n{background:var(--vinho);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px}
+.card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:12px;margin-bottom:8px}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.nome{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{color:var(--suave);font-size:13.5px}
+.hora{font-weight:800;font-size:17px;color:var(--vinho);min-width:52px}
+.vazio{color:var(--suave);font-size:14px;padding:6px 4px 2px}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.btn{border:1px solid var(--linha);background:#fff;color:var(--texto);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:600}
+.btn.p{background:var(--vinho);border-color:var(--vinho);color:#fff}
+.btn.z{background:var(--zap);border-color:var(--zap);color:#fff}
+.btn.v{color:var(--verde);border-color:#bfe3cd}
+.btn.r{color:var(--verm);border-color:#f0c4be}
+.btn.full{width:100%;padding:13px;font-size:16px}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:8px;padding:2px 7px}
+.t-marcado{background:#efe7fb;color:#5b3a9a}.t-feito{background:#e3f4ea;color:var(--verde)}.t-faltou{background:#fbe6e3;color:var(--verm)}.t-cancelado{background:#eee;color:#777}.t-pagar{background:#fff2d9;color:var(--amar)}
+.resumo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.resumo .card{margin:0;text-align:center}
+.resumo b{display:block;font-size:22px;color:var(--vinho)}
+.fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:7;background:var(--vinho);color:#fff;border:0;border-radius:28px;padding:14px 20px;font-size:16px;font-weight:700;box-shadow:0 6px 18px rgba(94,44,65,.35)}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:11px;border:1px solid var(--linha);border-radius:10px;background:#fff;color:var(--texto)}
+textarea{min-height:70px;resize:vertical}
+label{display:block;font-size:13px;font-weight:700;color:var(--suave);margin:12px 2px 4px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.busca{margin:4px 0 10px}
+.dia{font-size:14px;font-weight:800;color:var(--vinho2);margin:16px 4px 6px;text-transform:capitalize}
+.dia.hoje{color:var(--verde)}
+#sheet{position:fixed;inset:0;z-index:20;display:none;background:rgba(30,15,22,.45)}
+#sheet.on{display:block}
+#sheet .box{position:absolute;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--creme);border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+#sheet h3{margin:0 0 4px;font-size:18px;color:var(--vinho2)}
+.fecha{float:right;border:0;background:none;font-size:26px;line-height:1;color:var(--suave)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--linha);background:#fff;border-radius:16px;padding:6px 11px;font-size:13.5px}
+.chip.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+#toast{position:fixed;left:50%;bottom:140px;transform:translateX(-50%);background:#2b2226;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;opacity:0;transition:.25s;pointer-events:none}
+#toast.on{opacity:1}
+#versao{position:fixed;right:6px;bottom:calc(62px + env(safe-area-inset-bottom));font-size:10px;color:#b9a8b0;z-index:5}
+.aviso{background:#fff2d9;border:1px solid #f2d79c;color:#7a5410;border-radius:12px;padding:10px 12px;font-size:14px;margin-top:8px}
+.hist{border-top:1px solid var(--linha);padding:8px 0;font-size:14px}
+</style>
+</head>
+<body>
+<header><h1 id="tNeg">Karla Neves</h1><small id="tSub"></small></header>
+<main id="main"></main>
+<button class="fab" id="fab">+ Agendar</button>
+<nav>
+  <button data-v="hoje" class="on"><span>☀️</span>Hoje</button>
+  <button data-v="agenda"><span>📅</span>Agenda</button>
+  <button data-v="clientes"><span>👩</span>Clientes</button>
+  <button data-v="ajustes"><span>⚙️</span>Ajustes</button>
+</nav>
+<div id="sheet"><div class="box" id="sbox"></div></div>
+<div id="toast"></div>
+<div id="versao" data-versao></div>
+
+<script>
+const VERSAO='1.0.0';
+document.getElementById('versao').textContent='v'+VERSAO;
+
+/* ---------- dados ---------- */
+const CHAVE='karla-clientes-v1';
+const PADRAO={clientes:[],atend:[],servicos:['Atendimento'],config:{
+  negocio:'Karla Neves',diasSumida:45,
+  msgConfirma:'Oi, {nome}! Tudo bem? Passando para confirmar seu horário {quando} às {hora} ({servico}). Posso confirmar? 😊',
+  msgRetorno:'Oi, {nome}! Tudo bem? Faz um tempinho que você não vem. Quer agendar um horário esta semana? 💜',
+  msgAniver:'Feliz aniversário, {nome}! 🎉 Muita saúde e alegria. Um beijo, {negocio}.',
+  msgCobra:'Oi, {nome}! Ficou pendente o valor de R$ {valor} do atendimento de {data}. Pode me mandar quando der? Obrigada!'
+},ultimoBackup:null};
+let D;
+function carregar(){try{D=JSON.parse(localStorage.getItem(CHAVE))}catch(e){D=null}
+  if(!D)D=JSON.parse(JSON.stringify(PADRAO));
+  D.config=Object.assign({},PADRAO.config,D.config||{});
+  D.servicos=D.servicos&&D.servicos.length?D.servicos:['Atendimento'];}
+function salvar(){try{localStorage.setItem(CHAVE,JSON.stringify(D))}catch(e){toast('Erro ao salvar!')}}
+carregar();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+/* ---------- utilidades ---------- */
+const $=s=>document.querySelector(s);
+const id=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const hojeISO=()=>iso(new Date());
+const somaDias=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return iso(d)};
+const difDias=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+const dataBR=s=>s?s.split('-').reverse().join('/'):'';
+const diaSemana=s=>new Date(s+'T12:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'});
+const reais=v=>(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const cli=i=>D.clientes.find(c=>c.id===i)||{nome:'(cliente apagada)',tel:''};
+function quando(s){const d=difDias(hojeISO(),s);return d===0?'hoje':d===1?'amanhã':'no dia '+dataBR(s)}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
+function telZap(t){let d=String(t||'').replace(/\D/g,'');if(!d)return'';if(d.length<=11)d='55'+d;return d}
+function msg(mod,c,a){return mod.replace(/\{(\w+)\}/g,(m,k)=>({nome:(c.nome||'').split(' ')[0],negocio:D.config.negocio,
+  quando:a?quando(a.data):'',data:a?dataBR(a.data):'',hora:a?a.hora:'',servico:a?a.servico:'',valor:a?reais(a.valor):''}[k]??m))}
+function zap(c,texto){const t=telZap(c.tel);if(!t){toast('Cliente sem WhatsApp cadastrado');return}
+  window.open('https://wa.me/'+t+'?text='+encodeURIComponent(texto),'_blank')}
+function ultimaVisita(cid){let u=null;D.atend.forEach(a=>{if(a.clienteId===cid&&a.status==='feito'&&(!u||a.data>u))u=a.data});return u}
+function temFuturo(cid){const h=hojeISO();return D.atend.some(a=>a.clienteId===cid&&a.status==='marcado'&&a.data>=h)}
+function ordAt(a,b){return (a.data+a.hora).localeCompare(b.data+b.hora)}
+
+/* ---------- navegação ---------- */
+let VIEW='hoje',BUSCA='',VER_PASSADOS=false;
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));render();scrollTo(0,0)});
+$('#fab').onclick=()=>formAtend();
+
+function render(){
+  $('#tNeg').textContent=D.config.negocio||'Clientes';
+  $('#tSub').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  $('#fab').style.display=VIEW==='ajustes'?'none':'';
+  $('#fab').textContent=VIEW==='clientes'?'+ Cliente':'+ Agendar';
+  $('#fab').onclick=VIEW==='clientes'?()=>formCliente():()=>formAtend();
+  ({hoje:vHoje,agenda:vAgenda,clientes:vClientes,ajustes:vAjustes})[VIEW]();
+}
+
+/* ---------- cartões ---------- */
+function cardAt(a,modo){
+  const c=cli(a.clienteId);
+  const st=`<span class="tag t-${a.status}">${a.status}</span>`+(a.status==='feito'&&!a.pago&&Number(a.valor)>0?' <span class="tag t-pagar">a receber</span>':'');
+  let ac='';
+  if(a.status==='marcado'){
+    ac+=`<button class="btn z" onclick="zapAt('${a.id}','confirma')">Confirmar</button>`;
+    if(a.data<=hojeISO())ac+=`<button class="btn v" onclick="marca('${a.id}','feito')">✓ Feito</button><button class="btn r" onclick="marca('${a.id}','faltou')">Faltou</button>`;
+  }
+  if(a.status==='feito'&&!a.pago&&Number(a.valor)>0)ac+=`<button class="btn v" onclick="pagou('${a.id}')">Recebi R$ ${reais(a.valor)}</button><button class="btn z" onclick="zapAt('${a.id}','cobra')">Cobrar</button>`;
+  return `<div class="card"><div class="row" onclick="formAtend('${a.id}')">
+    <div class="hora">${modo==='data'?dataBR(a.data).slice(0,5):esc(a.hora||'--:--')}</div>
+    <div class="grow"><div class="nome">${esc(c.nome)}</div><div class="sub">${esc(a.servico||'')}${Number(a.valor)?' · R$ '+reais(a.valor):''}</div></div>
+    <div>${st}</div></div>${ac?`<div class="acoes">${ac}</div>`:''}</div>`;
+}
+function cardCli(c,extra,botao){
+  return `<div class="card"><div class="row"><div class="grow" onclick="verCliente('${c.id}')"><div class="nome">${esc(c.nome)}</div><div class="sub">${extra||''}</div></div>${botao||''}</div></div>`;
+}
+window.zapAt=(aid,tipo)=>{const a=D.atend.find(x=>x.id===aid),c=cli(a.clienteId);
+  zap(c,msg(tipo==='cobra'?D.config.msgCobra:D.config.msgConfirma,c,a));
+  if(tipo==='confirma'){a.confirmado=true;salvar()}};
+window.marca=(aid,s)=>{const a=D.atend.find(x=>x.id===aid);a.status=s;salvar();render();toast(s==='feito'?'Marcado como feito':'Marcado como falta')};
+window.pagou=aid=>{const a=D.atend.find(x=>x.id===aid);a.pago=true;salvar();render();toast('Pagamento registrado')};
+
+/* ---------- HOJE ---------- */
+function vHoje(){
+  const h=hojeISO(),am=somaDias(h,1);
+  const deHoje=D.atend.filter(a=>a.data===h&&a.status!=='cancelado').sort(ordAt);
+  const deAmanha=D.atend.filter(a=>a.data===am&&a.status==='marcado').sort(ordAt);
+  const aReceber=D.atend.filter(a=>a.status==='feito'&&!a.pago&&Number(a.valor)>0&&a.data<h).sort(ordAt);
+  const esqueceu=D.atend.filter(a=>a.status==='marcado'&&a.data<h).sort(ordAt);
+  const aniv=D.clientes.filter(c=>c.aniver).map(c=>{const[m,d]=c.aniver.split('-');let ano=new Date().getFullYear();let s=ano+'-'+m+'-'+d;if(s<h)s=(ano+1)+'-'+m+'-'+d;return{c,s,dd:difDias(h,s)}}).filter(x=>x.dd<=7).sort((a,b)=>a.dd-b.dd);
+  const sumidas=D.clientes.map(c=>({c,u:ultimaVisita(c.id)})).filter(x=>x.u&&difDias(x.u,h)>=D.config.diasSumida&&!temFuturo(x.c.id)&&!(x.c.avisadaEm&&difDias(x.c.avisadaEm,h)<15)).sort((a,b)=>a.u.localeCompare(b.u));
+  const mes=h.slice(0,7);const feitosMes=D.atend.filter(a=>a.status==='feito'&&a.data.startsWith(mes));
+  const recebido=feitosMes.filter(a=>a.pago).reduce((s,a)=>s+(Number(a.valor)||0),0);
+  let o='';
+  if(!D.clientes.length)o+=`<div class="card"><b>Comece por aqui:</b><br>1. Toque em <b>Clientes</b> e cadastre suas clientes.<br>2. Depois use <b>+ Agendar</b> para marcar os horários.<br>3. Esta tela mostra o que fazer no dia.</div>`;
+  o+=sec('Hoje',deHoje.length,deHoje.map(a=>cardAt(a)).join('')||'<div class="vazio">Nenhum horário hoje.</div>');
+  o+=sec('Amanhã · confirmar',deAmanha.length,deAmanha.map(a=>cardAt(a)).join('')||'<div class="vazio">Nada marcado para amanhã.</div>');
+  if(esqueceu.length)o+=sec('Ficou sem marcar se veio',esqueceu.length,esqueceu.map(a=>cardAt(a,'data')).join(''));
+  if(aReceber.length)o+=sec('A receber',aReceber.length,aReceber.map(a=>cardAt(a,'data')).join(''));
+  if(aniv.length)o+=sec('Aniversários (7 dias)',aniv.length,aniv.map(x=>cardCli(x.c,x.dd===0?'🎂 É hoje!':'🎂 '+dataBR(x.s).slice(0,5)+' · em '+x.dd+' dia(s)',`<button class="btn z" onclick="zapCli('${x.c.id}','aniver')">Parabéns</button>`)).join(''));
+  if(sumidas.length)o+=sec(`Sumidas (+${D.config.diasSumida} dias)`,sumidas.length,sumidas.map(x=>cardCli(x.c,'Última vez: '+dataBR(x.u)+' · há '+difDias(x.u,h)+' dias',`<button class="btn z" onclick="zapCli('${x.c.id}','retorno')">Chamar</button>`)).join(''));
+  o+=`<h2>Este mês</h2><div class="resumo"><div class="card"><b>${feitosMes.length}</b><span class="sub">atendimentos</span></div><div class="card"><b>R$ ${reais(recebido)}</b><span class="sub">recebido</span></div></div>`;
+  if(D.clientes.length&&(!D.ultimoBackup||difDias(D.ultimoBackup.slice(0,10),h)>=7))o+=`<div class="aviso">⚠️ Faz mais de 7 dias sem backup. Os dados ficam só neste celular. <a href="#" onclick="VIEW='ajustes';document.querySelector('[data-v=ajustes]').click();return false">Fazer backup</a></div>`;
+  $('#main').innerHTML=o;
+}
+function sec(t,n,html){return `<h2>${t}${n?`<span class="n">${n}</span>`:''}</h2>${html}`}
+window.zapCli=(cid,tipo)=>{const c=cli(cid);zap(c,msg(tipo==='aniver'?D.config.msgAniver:D.config.msgRetorno,c));
+  if(tipo==='retorno'){c.avisadaEm=hojeISO();salvar();setTimeout(render,500)}};
+
+/* ---------- AGENDA ---------- */
+function vAgenda(){
+  const h=hojeISO();
+  let lista=D.atend.filter(a=>VER_PASSADOS?a.data<h:a.data>=h).sort(ordAt);
+  if(VER_PASSADOS)lista.reverse();
+  let o=`<div class="chips" style="margin:6px 2px"><button class="chip ${!VER_PASSADOS?'on':''}" onclick="VER_PASSADOS=false;render()">Próximos</button><button class="chip ${VER_PASSADOS?'on':''}" onclick="VER_PASSADOS=true;render()">Passados</button></div>`;
+  if(!lista.length)o+='<div class="vazio" style="margin-top:14px">Nada por aqui.</div>';
+  let dia='';
+  lista.slice(0,200).forEach(a=>{if(a.data!==dia){dia=a.data;o+=`<div class="dia ${dia===h?'hoje':''}">${dia===h?'Hoje · ':''}${diaSemana(dia)}</div>`}o+=cardAt(a)});
+  $('#main').innerHTML=o;
+}
+
+/* ---------- CLIENTES ---------- */
+function vClientes(){
+  const b=BUSCA.toLowerCase();
+  const lista=D.clientes.filter(c=>!b||c.nome.toLowerCase().includes(b)||String(c.tel).includes(b)).sort((a,c)=>a.nome.localeCompare(c.nome,'pt'));
+  let o=`<input class="busca" id="busca" placeholder="🔍 Buscar por nome ou telefone" value="${esc(BUSCA)}">`;
+  o+=`<div class="sub" style="margin:0 4px 8px">${D.clientes.length} cliente(s)</div>`;
+  o+=lista.map(c=>{const u=ultimaVisita(c.id);return cardCli(c,u?'Última vez: '+dataBR(u):'Ainda sem atendimento',`<button class="btn z" onclick="zapCli('${c.id}','livre')">WhatsApp</button>`)}).join('')||'<div class="vazio">Nenhuma cliente encontrada.</div>';
+  $('#main').innerHTML=o;
+  const i=$('#busca');i.oninput=()=>{BUSCA=i.value;const p=i.selectionStart;vClientes();const n=$('#busca');n.focus();n.setSelectionRange(p,p)};
+}
+window.zapCli=((orig)=>(cid,tipo)=>{if(tipo==='livre'){const c=cli(cid);const t=telZap(c.tel);if(!t)return toast('Cliente sem WhatsApp cadastrado');window.open('https://wa.me/'+t,'_blank');return}orig(cid,tipo)})(window.zapCli);
+
+/* ---------- folha (formulários) ---------- */
+function abre(html){$('#sbox').innerHTML='<button class="fecha" onclick="fecha()">×</button>'+html;$('#sheet').classList.add('on')}
+window.fecha=()=>$('#sheet').classList.remove('on');
+$('#sheet').onclick=e=>{if(e.target.id==='sheet')fecha()};
+
+window.formCliente=(cid,depois)=>{
+  const c=cid?D.clientes.find(x=>x.id===cid):{nome:'',tel:'',aniver:'',obs:''};
+  const [am,ad]=(c.aniver||'-').split('-');
+  abre(`<h3>${cid?'Editar cliente':'Nova cliente'}</h3>
+  <label>Nome</label><input id="fNome" value="${esc(c.nome)}" autocomplete="off">
+  <label>WhatsApp (com DDD)</label><input id="fTel" type="tel" inputmode="tel" value="${esc(c.tel)}" placeholder="77 99999-9999">
+  <label>Aniversário (dia e mês)</label><div class="duo"><input id="fAd" inputmode="numeric" maxlength="2" placeholder="Dia" value="${esc(ad||'')}"><input id="fAm" inputmode="numeric" maxlength="2" placeholder="Mês" value="${esc(am||'')}"></div>
+  <label>Observações (preferências, alergias, cor, etc.)</label><textarea id="fObs">${esc(c.obs)}</textarea>
+  <div class="acoes"><button class="btn p full" id="fOk">Salvar</button></div>`);
+  setTimeout(()=>!cid&&$('#fNome').focus(),50);
+  $('#fOk').onclick=()=>{
+    const nome=$('#fNome').value.trim();if(!nome)return toast('Escreva o nome');
+    const d=parseInt($('#fAd').value),m=parseInt($('#fAm').value);
+    let aniver='';if(d&&m){if(d<1||d>31||m<1||m>12)return toast('Aniversário inválido');aniver=pad(m)+'-'+pad(d)}
+    const dados={nome,tel:$('#fTel').value.trim(),aniver,obs:$('#fObs').value.trim()};
+    let novo;if(cid)Object.assign(c,dados);else{novo={id:id(),criado:hojeISO(),...dados};D.clientes.push(novo)}
+    salvar();fecha();render();toast('Cliente salva');
+    if(depois)depois(novo||c);
+  };
+};
+
+window.verCliente=cid=>{
+  const c=cli(cid);const hs=D.atend.filter(a=>a.clienteId===cid).sort(ordAt).reverse();
+  const feitos=hs.filter(a=>a.status==='feito');const total=feitos.reduce((s,a)=>s+(Number(a.valor)||0),0);
+  const faltas=hs.filter(a=>a.status==='faltou').length;
+  abre(`<h3>${esc(c.nome)}</h3>
+  <div class="sub">${c.tel?'📱 '+esc(c.tel):'Sem telefone'}${c.aniver?' · 🎂 '+c.aniver.split('-').reverse().join('/'):''}</div>
+  ${c.obs?`<div class="card" style="margin-top:10px">📝 ${esc(c.obs).replace(/\n/g,'<br>')}</div>`:''}
+  <div class="resumo" style="margin-top:10px"><div class="card"><b>${feitos.length}</b><span class="sub">atendimentos${faltas?' · '+faltas+' falta(s)':''}</span></div><div class="card"><b>R$ ${reais(total)}</b><span class="sub">no total</span></div></div>
+  <div class="acoes"><button class="btn z" onclick="zapCli('${cid}','livre')">WhatsApp</button><button class="btn p" onclick="formAtend(null,'${cid}')">Agendar</button><button class="btn" onclick="formCliente('${cid}')">Editar</button></div>
+  <h2>Histórico</h2>${hs.map(a=>`<div class="hist" onclick="formAtend('${a.id}')"><b>${dataBR(a.data)} ${esc(a.hora||'')}</b> · ${esc(a.servico||'')} ${Number(a.valor)?'· R$ '+reais(a.valor):''} <span class="tag t-${a.status}">${a.status}</span></div>`).join('')||'<div class="vazio">Nenhum atendimento ainda.</div>'}
+  <div class="acoes" style="margin-top:20px"><button class="btn r" onclick="apagaCliente('${cid}')">Apagar cliente</button></div>`);
+};
+window.apagaCliente=cid=>{const n=D.atend.filter(a=>a.clienteId===cid).length;
+  if(!confirm('Apagar esta cliente'+(n?' e os '+n+' atendimento(s) dela':'')+'? Não dá para desfazer.'))return;
+  D.clientes=D.clientes.filter(c=>c.id!==cid);D.atend=D.atend.filter(a=>a.clienteId!==cid);salvar();fecha();render();toast('Cliente apagada')};
+
+window.formAtend=(aid,cidPre)=>{
+  if(!aid&&!D.clientes.length){toast('Cadastre uma cliente primeiro');return formCliente(null,c=>formAtend(null,c.id))}
+  const a=aid?D.atend.find(x=>x.id===aid):{clienteId:cidPre||'',data:hojeISO(),hora:'',servico:D.servicos[0]||'',valor:'',status:'marcado',pago:false,obs:''};
+  const opts=D.clientes.slice().sort((x,y)=>x.nome.localeCompare(y.nome,'pt')).map(c=>`<option value="${c.id}" ${c.id===a.clienteId?'selected':''}>${esc(c.nome)}</option>`).join('');
+  const sv=D.servicos.map(s=>`<option>${esc(s)}</option>`).join('');
+  abre(`<h3>${aid?'Atendimento':'Novo agendamento'}</h3>
+  <label>Cliente</label><div class="row"><select id="aCli" class="grow"><option value="">Escolha…</option>${opts}</select><button class="btn" onclick="formCliente(null,c=>formAtend(null,c.id))">+ Nova</button></div>
+  <div class="duo"><div><label>Data</label><input id="aData" type="date" value="${a.data}"></div><div><label>Hora</label><input id="aHora" type="time" value="${esc(a.hora)}"></div></div>
+  <label>Serviço</label><input id="aServ" list="lServ" value="${esc(a.servico)}" placeholder="Ex.: Manicure"><datalist id="lServ">${sv}</datalist>
+  <label>Valor (R$)</label><input id="aVal" inputmode="decimal" value="${a.valor!==''?esc(String(a.valor).replace('.',',')):''}" placeholder="0,00">
+  <label>Situação</label><div class="chips" id="aSt">${['marcado','feito','faltou','cancelado'].map(s=>`<button class="chip ${a.status===s?'on':''}" data-s="${s}">${s}</button>`).join('')}</div>
+  <label><input type="checkbox" id="aPago" style="width:auto;vertical-align:middle" ${a.pago?'checked':''}> Já pagou</label>
+  <label>Observação</label><textarea id="aObs">${esc(a.obs)}</textarea>
+  <div class="acoes"><button class="btn p full" id="aOk">Salvar</button></div>
+  ${aid?`<div class="acoes"><button class="btn r" id="aDel">Apagar atendimento</button></div>`:''}`);
+  let st=a.status;
+  document.querySelectorAll('#aSt .chip').forEach(b=>b.onclick=()=>{st=b.dataset.s;document.querySelectorAll('#aSt .chip').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#aOk').onclick=()=>{
+    const clienteId=$('#aCli').value;if(!clienteId)return toast('Escolha a cliente');
+    const data=$('#aData').value;if(!data)return toast('Escolha a data');
+    const servico=$('#aServ').value.trim();
+    const valor=parseFloat(($('#aVal').value||'0').replace(/\./g,'').replace(',','.'))||0;
+    const hora=$('#aHora').value;
+    const choque=D.atend.find(x=>x.id!==aid&&x.data===data&&hora&&x.hora===hora&&x.status==='marcado');
+    if(choque&&!confirm('Já tem '+cli(choque.clienteId).nome+' marcada nesse horário. Salvar mesmo assim?'))return;
+    const dados={clienteId,data,hora,servico,valor,status:st,pago:$('#aPago').checked,obs:$('#aObs').value.trim()};
+    if(aid)Object.assign(a,dados);else D.atend.push({id:id(),...dados});
+    if(servico&&!D.servicos.includes(servico))D.servicos.push(servico);
+    salvar();fecha();render();toast('Salvo');
+  };
+  if(aid)$('#aDel').onclick=()=>{if(!confirm('Apagar este atendimento?'))return;D.atend=D.atend.filter(x=>x.id!==aid);salvar();fecha();render();toast('Apagado')};
+};
+
+/* ---------- AJUSTES ---------- */
+function vAjustes(){
+  const c=D.config;
+  $('#main').innerHTML=`
+  <h2>Backup (importante)</h2>
+  <div class="card">Os dados ficam <b>só neste celular</b>. Faça backup toda semana e guarde o arquivo no WhatsApp, e-mail ou Drive.
+  <div class="sub" style="margin-top:6px">Último backup: ${D.ultimoBackup?dataBR(D.ultimoBackup.slice(0,10)):'nunca'}</div>
+  <div class="acoes"><button class="btn p" onclick="backup()">Fazer backup</button><button class="btn" onclick="$('#arq').click()">Restaurar backup</button></div>
+  <input type="file" id="arq" accept=".json,application/json" style="display:none"></div>
+  <h2>Negócio</h2>
+  <div class="card"><label style="margin-top:0">Nome que aparece no topo e nas mensagens</label><input id="cNeg" value="${esc(c.negocio)}">
+  <label>Avisar "sumida" depois de quantos dias sem vir</label><input id="cDias" type="number" inputmode="numeric" value="${c.diasSumida}"></div>
+  <h2>Mensagens do WhatsApp</h2>
+  <div class="card"><div class="sub">Pode usar: {nome} {quando} {data} {hora} {servico} {valor} {negocio}</div>
+  <label>Confirmar horário</label><textarea id="mConf">${esc(c.msgConfirma)}</textarea>
+  <label>Chamar cliente sumida</label><textarea id="mRet">${esc(c.msgRetorno)}</textarea>
+  <label>Aniversário</label><textarea id="mAni">${esc(c.msgAniver)}</textarea>
+  <label>Cobrar pagamento</label><textarea id="mCob">${esc(c.msgCobra)}</textarea></div>
+  <div class="acoes"><button class="btn p full" onclick="salvaAjustes()">Salvar ajustes</button></div>
+  <h2>Instalar no celular</h2>
+  <div class="card sub">Android (Chrome): menu ⋮ → <b>Adicionar à tela inicial</b>.<br>iPhone (Safari): botão Compartilhar → <b>Adicionar à Tela de Início</b>.</div>
+  <div class="sub" style="text-align:center;margin-top:16px">Versão ${VERSAO}</div>`;
+  $('#arq').onchange=restaurar;
+}
+window.salvaAjustes=()=>{Object.assign(D.config,{negocio:$('#cNeg').value.trim()||'Clientes',diasSumida:Math.max(1,parseInt($('#cDias').value)||45),
+  msgConfirma:$('#mConf').value,msgRetorno:$('#mRet').value,msgAniver:$('#mAni').value,msgCobra:$('#mCob').value});salvar();render();toast('Ajustes salvos')};
+window.backup=async()=>{
+  D.ultimoBackup=new Date().toISOString();salvar();
+  const nome='backup-clientes-'+hojeISO()+'.json';
+  const blob=new Blob([JSON.stringify(D,null,1)],{type:'application/json'});
+  const file=new File([blob],nome,{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:nome});render();toast('Backup feito');return}}catch(e){if(e.name==='AbortError'){return}}
+  const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download=nome;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);render();toast('Backup baixado');
+};
+function restaurar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const n=JSON.parse(r.result);if(!Array.isArray(n.clientes)||!Array.isArray(n.atend))throw 0;
+    if(!confirm('Restaurar este backup? Ele SUBSTITUI os dados atuais ('+n.clientes.length+' clientes, '+n.atend.length+' atendimentos).'))return;
+    D=n;D.config=Object.assign({},PADRAO.config,D.config||{});D.servicos=D.servicos||['Atendimento'];salvar();render();toast('Backup restaurado')}catch(x){toast('Arquivo inválido')}};
+  r.readAsText(f)}
+
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
