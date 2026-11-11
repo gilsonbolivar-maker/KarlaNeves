@@ -27,7 +27,10 @@
 <script src="vendor/supabase.js"></script>
 <script src="comum.js"></script>
 <script>
-const VERSAO='3.0.0';
+const VERSAO='3.0.1';
+// MODO DE TESTE: o painel entra sozinho nesta conta, sem pedir e-mail.
+// Para voltar a pedir login, troque para: const MODO_TESTE=null;
+const MODO_TESTE={email:'painel-teste@karlaneves.app',password:'3dpyPc7S07q_X8tjYHe5YU6r'};
 $('#versao').textContent='v'+VERSAO;
 const sb=window.SB_MOCK||supabase.createClient(KN.URL,KN.CHAVE);
 let S={clientes:[],ativ:[],lemb:[],perfil:{nome:'',zap:''}};
@@ -35,8 +38,11 @@ let VIEW='hoje',CLI=null,BUSCA='',FILTRO_A='abertas',USER=null;
 
 /* ---------- acesso ---------- */
 async function iniciar(){
-  const {data}=await sb.auth.getSession();
+  let {data}=await sb.auth.getSession();
   USER=data.session?data.session.user:null;
+  if(!USER&&MODO_TESTE){const r=await sb.auth.signInWithPassword(MODO_TESTE);
+    if(r.error){telaLogin();return $('#lgMsg').innerHTML=`<div class="aviso">A entrada automática falhou: ${esc(traduz(r.error.message))}</div>`}
+    USER=r.data.user}
   if(!USER)return telaLogin();
   $('#nav').style.display='';$('#engr').style.display='';$('#atual').style.display='';
   await carregar();render();
@@ -303,10 +309,10 @@ function vAjustes(){
   <h2>Simulação</h2><div class="card">Cria 10 clientes fictícias com atividades em todas as etapas. Os telefones são falsos.
   <div class="acoes"><button class="btn p" id="dCarr">Carregar exemplos</button><button class="btn r" id="dApaga">Apagar exemplos</button></div></div>
   <h2>Legendas</h2><div class="card sub">As clientes gravam no Legendas. O roteiro do vídeo abre direto no teleprompter.<div class="acoes"><a class="btn" href="legendas/" target="_blank">Abrir o Legendas</a></div></div>
-  <h2>Conta</h2><div class="card sub">Entrou como <b>${esc(USER.email)}</b>.<div class="acoes"><button class="btn r" id="sair">Sair</button></div></div>
+  <h2>Conta</h2><div class="card sub">${MODO_TESTE?'<b>Modo de teste:</b> o painel entra sem e-mail. Qualquer pessoa com este endereço entra. Use só clientes fictícias.':'Entrou como <b>'+esc(USER.email)+'</b>.<div class="acoes"><button class="btn r" id="sair">Sair</button></div>'}</div>
   <div class="sub" style="text-align:center;margin-top:16px">Versão ${VERSAO}</div>`;
   $('#pOk').onclick=()=>grava(sb.from('perfis').update({nome:$('#pNome').value.trim()||'Karla Neves',zap:$('#pZap').value.trim()}).eq('owner',USER.id),'Salvo');
-  $('#sair').onclick=async()=>{await sb.auth.signOut();USER=null;telaLogin()};
+  if($('#sair'))$('#sair').onclick=async()=>{await sb.auth.signOut();USER=null;telaLogin()};
   $('#dCarr').onclick=carregaExemplo;$('#dApaga').onclick=apagaExemplo;
 }
 async function carregaExemplo(){
