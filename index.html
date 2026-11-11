@@ -73,6 +73,7 @@ label{display:block;font-size:13px;font-weight:700;color:var(--suave);margin:12p
 <nav>
   <button data-v="hoje" class="on"><span>☀️</span>Hoje</button>
   <button data-v="agenda"><span>📅</span>Agenda</button>
+  <button data-v="lembretes"><span>📝</span>Lembretes</button>
   <button data-v="clientes"><span>👩</span>Clientes</button>
   <button data-v="ajustes"><span>⚙️</span>Ajustes</button>
 </nav>
@@ -81,12 +82,12 @@ label{display:block;font-size:13px;font-weight:700;color:var(--suave);margin:12p
 <div id="versao" data-versao></div>
 
 <script>
-const VERSAO='1.0.0';
+const VERSAO='1.1.0';
 document.getElementById('versao').textContent='v'+VERSAO;
 
 /* ---------- dados ---------- */
 const CHAVE='karla-clientes-v1';
-const PADRAO={clientes:[],atend:[],servicos:['Atendimento'],config:{
+const PADRAO={clientes:[],atend:[],lembretes:[],servicos:['Atendimento'],config:{
   negocio:'Karla Neves',diasSumida:45,
   msgConfirma:'Oi, {nome}! Tudo bem? Passando para confirmar seu horário {quando} às {hora} ({servico}). Posso confirmar? 😊',
   msgRetorno:'Oi, {nome}! Tudo bem? Faz um tempinho que você não vem. Quer agendar um horário esta semana? 💜',
@@ -97,7 +98,8 @@ let D;
 function carregar(){try{D=JSON.parse(localStorage.getItem(CHAVE))}catch(e){D=null}
   if(!D)D=JSON.parse(JSON.stringify(PADRAO));
   D.config=Object.assign({},PADRAO.config,D.config||{});
-  D.servicos=D.servicos&&D.servicos.length?D.servicos:['Atendimento'];}
+  D.servicos=D.servicos&&D.servicos.length?D.servicos:['Atendimento'];
+  D.lembretes=D.lembretes||[];}
 function salvar(){try{localStorage.setItem(CHAVE,JSON.stringify(D))}catch(e){toast('Erro ao salvar!')}}
 carregar();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
@@ -136,9 +138,9 @@ function render(){
   $('#tNeg').textContent=D.config.negocio||'Clientes';
   $('#tSub').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
   $('#fab').style.display=VIEW==='ajustes'?'none':'';
-  $('#fab').textContent=VIEW==='clientes'?'+ Cliente':'+ Agendar';
-  $('#fab').onclick=VIEW==='clientes'?()=>formCliente():()=>formAtend();
-  ({hoje:vHoje,agenda:vAgenda,clientes:vClientes,ajustes:vAjustes})[VIEW]();
+  $('#fab').textContent=VIEW==='clientes'?'+ Cliente':VIEW==='lembretes'?'+ Lembrete':'+ Agendar';
+  $('#fab').onclick=VIEW==='clientes'?()=>formCliente():VIEW==='lembretes'?()=>formLemb():()=>formAtend();
+  ({hoje:vHoje,agenda:vAgenda,lembretes:vLembretes,clientes:vClientes,ajustes:vAjustes})[VIEW]();
 }
 
 /* ---------- cartões ---------- */
@@ -178,6 +180,8 @@ function vHoje(){
   const recebido=feitosMes.filter(a=>a.pago).reduce((s,a)=>s+(Number(a.valor)||0),0);
   let o='';
   if(!D.clientes.length)o+=`<div class="card"><b>Comece por aqui:</b><br>1. Toque em <b>Clientes</b> e cadastre suas clientes.<br>2. Depois use <b>+ Agendar</b> para marcar os horários.<br>3. Esta tela mostra o que fazer no dia.</div>`;
+  const lembHoje=D.lembretes.filter(l=>!l.feito&&(!l.data||l.data<=h)).sort(ordLemb);
+  if(lembHoje.length)o+=sec('Lembretes',lembHoje.length,lembHoje.map(cardLemb).join(''));
   o+=sec('Hoje',deHoje.length,deHoje.map(a=>cardAt(a)).join('')||'<div class="vazio">Nenhum horário hoje.</div>');
   o+=sec('Amanhã · confirmar',deAmanha.length,deAmanha.map(a=>cardAt(a)).join('')||'<div class="vazio">Nada marcado para amanhã.</div>');
   if(esqueceu.length)o+=sec('Ficou sem marcar se veio',esqueceu.length,esqueceu.map(a=>cardAt(a,'data')).join(''));
@@ -202,6 +206,69 @@ function vAgenda(){
   let dia='';
   lista.slice(0,200).forEach(a=>{if(a.data!==dia){dia=a.data;o+=`<div class="dia ${dia===h?'hoje':''}">${dia===h?'Hoje · ':''}${diaSemana(dia)}</div>`}o+=cardAt(a)});
   $('#main').innerHTML=o;
+}
+
+/* ---------- LEMBRETES ---------- */
+const REP={nao:'Não repete',diario:'Todo dia',semanal:'Toda semana',mensal:'Todo mês'};
+function ordLemb(a,b){return ((a.data||'0000')+(a.hora||'')).localeCompare((b.data||'0000')+(b.hora||''))}
+function cardLemb(l){
+  const h=hojeISO();const atras=l.data&&l.data<h&&!l.feito;
+  const c=l.clienteId?cli(l.clienteId):null;
+  const q=l.data?(l.data===h?'Hoje':l.data===somaDias(h,1)?'Amanhã':dataBR(l.data))+(l.hora?' às '+l.hora:''):'Sem data';
+  return `<div class="card" style="${l.feito?'opacity:.55':''}"><div class="row">
+    <button class="btn ${l.feito?'v':''}" style="padding:6px 10px;font-size:18px" onclick="feitoLemb('${l.id}')">${l.feito?'✓':'○'}</button>
+    <div class="grow" onclick="formLemb('${l.id}')"><div class="nome" style="white-space:normal;${l.feito?'text-decoration:line-through':''}">${esc(l.texto)}</div>
+    <div class="sub">${atras?'<b style="color:var(--verm)">Atrasado · </b>':''}${q}${l.repete&&l.repete!=='nao'?' · 🔁 '+REP[l.repete]:''}${c?' · 👩 '+esc(c.nome):''}</div></div></div></div>`;
+}
+function vLembretes(){
+  const pend=D.lembretes.filter(l=>!l.feito).sort(ordLemb);
+  const feitos=D.lembretes.filter(l=>l.feito).sort(ordLemb).reverse().slice(0,30);
+  let o=sec('A fazer',pend.length,pend.map(cardLemb).join('')||'<div class="vazio">Nada pendente. Toque em <b>+ Lembrete</b>.</div>');
+  if(feitos.length)o+=sec('Feitos',0,feitos.map(cardLemb).join('')+`<div class="acoes"><button class="btn r" onclick="limpaFeitos()">Apagar os feitos</button></div>`);
+  $('#main').innerHTML=o;
+}
+window.feitoLemb=lid=>{const l=D.lembretes.find(x=>x.id===lid);l.feito=!l.feito;
+  if(l.feito&&l.repete&&l.repete!=='nao'&&!l.proxCriado){const base=l.data||hojeISO();
+    const prox=l.repete==='diario'?somaDias(base,1):l.repete==='semanal'?somaDias(base,7):(()=>{const d=new Date(base+'T12:00');d.setMonth(d.getMonth()+1);return iso(d)})();
+    D.lembretes.push({...l,id:id(),data:prox,feito:false,proxCriado:false});l.proxCriado=true;toast('Feito! Próximo: '+dataBR(prox))}
+  else toast(l.feito?'Feito!':'Voltou para a fazer');
+  salvar();render()};
+window.limpaFeitos=()=>{if(!confirm('Apagar todos os lembretes feitos?'))return;D.lembretes=D.lembretes.filter(l=>!l.feito);salvar();render()};
+window.formLemb=(lid)=>{
+  const l=lid?D.lembretes.find(x=>x.id===lid):{texto:'',data:hojeISO(),hora:'',clienteId:'',repete:'nao',feito:false};
+  const opts=D.clientes.slice().sort((x,y)=>x.nome.localeCompare(y.nome,'pt')).map(c=>`<option value="${c.id}" ${c.id===l.clienteId?'selected':''}>${esc(c.nome)}</option>`).join('');
+  abre(`<h3>${lid?'Lembrete':'Novo lembrete'}</h3>
+  <label>O que fazer</label><textarea id="lTxt" placeholder="Ex.: Comprar acetona, pagar aluguel do espaço">${esc(l.texto)}</textarea>
+  <div class="duo"><div><label>Data</label><input id="lData" type="date" value="${l.data||''}"></div><div><label>Hora (opcional)</label><input id="lHora" type="time" value="${esc(l.hora||'')}"></div></div>
+  <label>Repetir</label><select id="lRep">${Object.entries(REP).map(([k,v])=>`<option value="${k}" ${l.repete===k?'selected':''}>${v}</option>`).join('')}</select>
+  <label>Cliente (opcional)</label><select id="lCli"><option value="">Nenhuma</option>${opts}</select>
+  <div class="acoes"><button class="btn p full" id="lOk">Salvar</button></div>
+  <div class="acoes"><button class="btn full" id="lCal">📅 Salvar e pôr no calendário (com alarme)</button></div>
+  ${lid?`<div class="acoes"><button class="btn r" id="lDel">Apagar lembrete</button></div>`:''}`);
+  setTimeout(()=>!lid&&$('#lTxt').focus(),50);
+  const grava=()=>{const texto=$('#lTxt').value.trim();if(!texto){toast('Escreva o lembrete');return null}
+    const dados={texto,data:$('#lData').value,hora:$('#lHora').value,repete:$('#lRep').value,clienteId:$('#lCli').value};
+    let obj;if(lid){Object.assign(l,dados);obj=l}else{obj={id:id(),feito:false,...dados};D.lembretes.push(obj)}
+    salvar();fecha();render();return obj};
+  $('#lOk').onclick=()=>{if(grava())toast('Lembrete salvo')};
+  $('#lCal').onclick=()=>{if(!$('#lData').value)return toast('Escolha uma data para o calendário');const o=grava();if(o)calendario(o)};
+  if(lid)$('#lDel').onclick=()=>{if(!confirm('Apagar este lembrete?'))return;D.lembretes=D.lembretes.filter(x=>x.id!==lid);salvar();fecha();render();toast('Apagado')};
+};
+async function calendario(l){
+  const d=l.data.replace(/-/g,'');const agora=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+  const txt=s=>String(s).replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+  let ini,fim;
+  if(l.hora){const t=l.hora.replace(':','')+'00';ini='DTSTART:'+d+'T'+t;const e=new Date(l.data+'T'+l.hora);e.setMinutes(e.getMinutes()+30);fim='DTEND:'+e.getFullYear()+pad(e.getMonth()+1)+pad(e.getDate())+'T'+pad(e.getHours())+pad(e.getMinutes())+'00'}
+  else{ini='DTSTART;VALUE=DATE:'+d;fim='DTEND;VALUE=DATE:'+somaDias(l.data,1).replace(/-/g,'')}
+  const rr={diario:'DAILY',semanal:'WEEKLY',mensal:'MONTHLY'}[l.repete];
+  const c=l.clienteId?cli(l.clienteId).nome:'';
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//KarlaNeves//Clientes//PT','BEGIN:VEVENT','UID:'+l.id+'@karlaneves','DTSTAMP:'+agora,ini,fim,
+    'SUMMARY:'+txt(l.texto+(c?' ('+c+')':'')),...(rr?['RRULE:FREQ='+rr]:[]),
+    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+txt(l.texto),'TRIGGER:'+(l.hora?'-PT0M':'PT9H'),'END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const nome='lembrete.ics';const blob=new Blob([ics],{type:'text/calendar'});const file=new File([blob],nome,{type:'text/calendar'});
+  try{if(/Android/i.test(navigator.userAgent)&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e.name==='AbortError')return}
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);
+  toast('Abra o arquivo para adicionar ao calendário');
 }
 
 /* ---------- CLIENTES ---------- */
@@ -328,7 +395,7 @@ window.backup=async()=>{
 function restaurar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const n=JSON.parse(r.result);if(!Array.isArray(n.clientes)||!Array.isArray(n.atend))throw 0;
     if(!confirm('Restaurar este backup? Ele SUBSTITUI os dados atuais ('+n.clientes.length+' clientes, '+n.atend.length+' atendimentos).'))return;
-    D=n;D.config=Object.assign({},PADRAO.config,D.config||{});D.servicos=D.servicos||['Atendimento'];salvar();render();toast('Backup restaurado')}catch(x){toast('Arquivo inválido')}};
+    D=n;D.config=Object.assign({},PADRAO.config,D.config||{});D.servicos=D.servicos||['Atendimento'];D.lembretes=D.lembretes||[];salvar();render();toast('Backup restaurado')}catch(x){toast('Arquivo inválido')}};
   r.readAsText(f)}
 
 render();
