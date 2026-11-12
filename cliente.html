@@ -20,7 +20,7 @@
 <script src="vendor/supabase.js"></script>
 <script src="comum.js"></script>
 <script>
-const VERSAO='3.1.0';
+const VERSAO='3.2.0';
 const sb=window.SB_MOCK||supabase.createClient(KN.URL,KN.CHAVE,{auth:{persistSession:false}});
 let TOK=location.hash.slice(1).replace(/[^0-9a-f]/gi,'');
 try{if(TOK)localStorage.setItem('kn-token',TOK);else TOK=localStorage.getItem('kn-token')||''}catch(e){}
@@ -56,7 +56,8 @@ function render(){
   o+=`<div class="resumo" style="margin-top:12px"><div class="card"><b>${abertas.length}</b><span class="sub">para fazer</span></div><div class="card"><b style="color:${atras?'var(--verm)':'var(--vinho)'}">${atras}</b><span class="sub">atrasadas</span></div><div class="card"><b>${feitas.length}</b><span class="sub">feitas (30 dias)</span></div></div>`;
   o+=`<h2>Para fazer${abertas.length?`<span class="n">${abertas.length}</span>`:''}</h2>`;
   o+=abertas.map(cardAtiv).join('')||'<div class="card" style="text-align:center">Tudo em dia! 🎉<div class="sub">Quando houver atividade nova, ela aparece aqui.</div></div>';
-  if(feitas.length)o+=`<h2 onclick="VER_FEITAS=!VER_FEITAS;render()" style="cursor:pointer">Feitas ${VER_FEITAS?'▾':'▸'}<span class="n">${feitas.length}</span></h2>`+(VER_FEITAS?feitas.map(cardAtiv).join(''):'');
+  if(feitas.length)o+=`<h2 onclick="VER_FEITAS=!VER_FEITAS;render()" style="cursor:pointer">Feitas recentemente ${VER_FEITAS?'▾':'▸'}<span class="n">${feitas.length}</span></h2>`+(VER_FEITAS?feitas.map(cardAtiv).join(''):'');
+  o+=`<h2 style="margin-top:26px;font-size:17px">📖 Seu histórico</h2>`+historicoHTML(P.historico||[],2);
   if(m.zap)o+=`<div class="acoes" style="margin-top:20px"><button class="btn z full" onclick="falar()">💬 Falar com ${esc(m.nome.split(' ')[0])}</button></div>`;
   o+=`<div class="card sub" style="margin-top:16px">📱 <b>Deixe esta página na tela inicial:</b><br>iPhone (Safari): Compartilhar → Adicionar à Tela de Início.<br>Android (Chrome): menu ⋮ → Adicionar à tela inicial.</div>
   <div class="sub" style="text-align:center;margin-top:10px">v${VERSAO}</div>`;
@@ -88,7 +89,7 @@ function cardAtiv(a){
 }
 const TIPO_MSG={cobranca:'⏰ Cobrança',parabens:'🎉 Parabéns',lembrete:'📌 Lembrete'};
 const COR_MSG={cobranca:'s-atrasada',parabens:'s-feito',lembrete:'s-pendente'};
-function bolha(x){const dela=x.autor==='karla';const a=x.atividade_id?P.atividades.find(y=>y.id===x.atividade_id):null;const m=P.mentora||{nome:''};
+function bolha(x){const dela=x.autor==='karla';const a=x.atividade_id?(P.atividades.find(y=>y.id===x.atividade_id)||(P.historico||[]).find(y=>y.id===x.atividade_id)):null;const m=P.mentora||{nome:''};
   return `<div style="display:flex;justify-content:${dela?'flex-start':'flex-end'};margin:6px 0"><div style="max-width:88%;background:${dela?(x.lida_em?'#fff':'#fff8e8'):'#f3e6ec'};border:1px solid ${dela&&!x.lida_em?'#f2d79c':'var(--linha)'};border-radius:14px;padding:9px 11px">
   ${TIPO_MSG[x.tipo]?`<span class="tag ${COR_MSG[x.tipo]}" style="margin-bottom:4px">${TIPO_MSG[x.tipo]}</span>`:''}
   ${a?`<div class="sub">sobre: ${esc(a.titulo)}</div>`:''}

@@ -27,7 +27,7 @@
 <script src="vendor/supabase.js"></script>
 <script src="comum.js"></script>
 <script>
-const VERSAO='3.1.0';
+const VERSAO='3.2.0';
 // MODO DE TESTE: o painel entra sozinho nesta conta, sem pedir e-mail.
 // Para voltar a pedir login, troque para: const MODO_TESTE=null;
 const MODO_TESTE={email:'painel-teste@karlaneves.app',password:'3dpyPc7S07q_X8tjYHe5YU6r'};
@@ -210,8 +210,8 @@ function vCliente(){
   <div class="chips" style="margin-top:8px"><button class="chip" onclick="formMsg('${c.id}','cobranca')">⏰ Cobrar</button><button class="chip" onclick="formMsg('${c.id}','parabens')">🎉 Parabenizar</button><button class="chip" onclick="formMsg('${c.id}','lembrete')">📌 Lembrete</button><button class="chip" onclick="formMsg('${c.id}')">💬 Mensagem</button></div>
   ${ms.length>3?`<div class="acoes"><button class="btn full" onclick="conversa('${c.id}')">Ver conversa inteira</button></div>`:''}</div>
   <h2>Atividades</h2>
-  <div class="chips" style="margin:0 2px 8px"><button class="chip ${FILTRO_A==='abertas'?'on':''}" onclick="FILTRO_A='abertas';render()">Em aberto (${as.filter(F.abertas).length})</button><button class="chip ${FILTRO_A==='feitas'?'on':''}" onclick="FILTRO_A='feitas';render()">Feitas (${as.filter(F.feitas).length})</button></div>
-  ${lista.map(a=>cardAtiv(a,false)).join('')||'<div class="vazio">Nada aqui. Toque em <b>+ Atividade</b>.</div>'}
+  <div class="chips" style="margin:0 2px 8px"><button class="chip ${FILTRO_A==='abertas'?'on':''}" onclick="FILTRO_A='abertas';render()">Em aberto (${as.filter(F.abertas).length})</button><button class="chip ${FILTRO_A==='feitas'?'on':''}" onclick="FILTRO_A='feitas';render()">📖 Histórico (${as.filter(F.feitas).length})</button></div>
+  ${FILTRO_A==='feitas'?historicoHTML(as,0):(lista.map(a=>cardAtiv(a,false)).join('')||'<div class="vazio">Nada aqui. Toque em <b>+ Atividade</b>.</div>')}
   <h2>Lembretes na página dela${lb.length?`<span class="n">${lb.length}</span>`:''}</h2>
   ${lb.map(cardLemb).join('')||'<div class="vazio">Nenhum lembrete.</div>'}
   <div class="acoes"><button class="btn" onclick="formLemb(null,'${c.id}')">+ Lembrete para ${esc(c.nome.split(' ')[0])}</button></div>`;
