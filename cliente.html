@@ -20,7 +20,7 @@
 <script src="vendor/supabase.js"></script>
 <script src="comum.js"></script>
 <script>
-const VERSAO='3.0.0';
+const VERSAO='3.1.0';
 const sb=window.SB_MOCK||supabase.createClient(KN.URL,KN.CHAVE,{auth:{persistSession:false}});
 let TOK=location.hash.slice(1).replace(/[^0-9a-f]/gi,'');
 try{if(TOK)localStorage.setItem('kn-token',TOK);else TOK=localStorage.getItem('kn-token')||''}catch(e){}
@@ -45,6 +45,11 @@ function render(){
   const abertas=P.atividades.filter(a=>a.status!=='feito');const feitas=P.atividades.filter(a=>a.status==='feito').sort((x,y)=>(y.feito_em||'').localeCompare(x.feito_em||''));
   const lemb=P.lembretes.filter(l=>!l.feito);const atras=abertas.filter(atrasada).length;
   let o='';
+  const ms=P.mensagens||[];const novas=ms.filter(x=>x.autor==='karla'&&!x.lida_em);
+  o+=`<h2>Mensagens de ${esc(m.nome.split(' ')[0])}${novas.length?`<span class="n" style="background:var(--zap)">${novas.length} nova(s)</span>`:''}</h2>
+  <div class="card">${ms.slice(-3).map(bolha).join('')||'<div class="vazio">Nenhuma mensagem ainda.</div>'}
+  <div class="acoes"><button class="btn p" onclick="conversa()">${ms.length>3?'Ver todas e responder':'Responder'}</button></div></div>`;
+  if(novas.length)setTimeout(()=>sb.rpc('portal_ler',{tok:TOK}),1500);
   if(lemb.length)o+=`<h2>Recados de ${esc(m.nome.split(' ')[0])}<span class="n">${lemb.length}</span></h2>`+lemb.map(l=>`<div class="card" style="border-left:4px solid var(--vinho)"><div class="row"><div class="grow">
     <div style="white-space:pre-wrap">📌 ${esc(l.texto)}</div>${l.data?`<div class="sub">${quando(l.data)}</div>`:''}</div>
     <button class="btn v" onclick="vi('${l.id}')">Ok, vi</button></div></div>`).join('');
@@ -81,6 +86,24 @@ function cardAtiv(a){
     <div class="sub">${a.status==='feito'?'Feito '+haQuanto(a.feito_em):at?'<b style="color:var(--verm)">Prazo era '+quando(a.prazo)+'</b>':'Prazo: '+quando(a.prazo)}</div></div>${tag}</div>
     <div class="etapas">${passos.map((e,k)=>`<i class="${k<=i?'ok':''}"></i>`).join('')}</div>${corpo}</div>`;
 }
+const TIPO_MSG={cobranca:'⏰ Cobrança',parabens:'🎉 Parabéns',lembrete:'📌 Lembrete'};
+const COR_MSG={cobranca:'s-atrasada',parabens:'s-feito',lembrete:'s-pendente'};
+function bolha(x){const dela=x.autor==='karla';const a=x.atividade_id?P.atividades.find(y=>y.id===x.atividade_id):null;const m=P.mentora||{nome:''};
+  return `<div style="display:flex;justify-content:${dela?'flex-start':'flex-end'};margin:6px 0"><div style="max-width:88%;background:${dela?(x.lida_em?'#fff':'#fff8e8'):'#f3e6ec'};border:1px solid ${dela&&!x.lida_em?'#f2d79c':'var(--linha)'};border-radius:14px;padding:9px 11px">
+  ${TIPO_MSG[x.tipo]?`<span class="tag ${COR_MSG[x.tipo]}" style="margin-bottom:4px">${TIPO_MSG[x.tipo]}</span>`:''}
+  ${a?`<div class="sub">sobre: ${esc(a.titulo)}</div>`:''}
+  <div style="white-space:pre-wrap">${esc(x.texto)}</div>
+  <div class="sub" style="font-size:12px;text-align:right">${dela?esc(m.nome.split(' ')[0]):'Você'} · ${haQuanto(x.criado)}</div></div></div>`}
+window.conversa=(aid)=>{const ms=P.mensagens||[];
+  $('#sbox').innerHTML=`<button class="fecha" onclick="$('#sheet').classList.remove('on')">×</button><h3>Conversa com ${esc((P.mentora||{nome:''}).nome.split(' ')[0])}</h3>
+  ${ms.map(bolha).join('')||'<div class="vazio">Nenhuma mensagem ainda. Escreva a primeira.</div>'}
+  <div style="position:sticky;bottom:0;background:var(--creme);padding-top:8px"><textarea id="cTxt" placeholder="Escreva sua mensagem" style="min-height:80px"></textarea>
+  <div class="acoes"><button class="btn p full" id="cOk">Enviar</button></div></div>`;
+  $('#sheet').classList.add('on');setTimeout(()=>{$('#sbox').scrollTop=$('#sbox').scrollHeight},30);
+  $('#cOk').onclick=async()=>{const texto=$('#cTxt').value.trim();if(!texto)return toast('Escreva a mensagem');$('#cOk').disabled=true;
+    const {data,error}=await sb.rpc('portal_mensagem',{tok:TOK,texto,atividade:aid||null});
+    if(error||!data){$('#cOk').disabled=false;return toast('Não enviou. Verifique a internet.')}
+    toast('Mensagem enviada');await carregar();conversa(aid)}};
 window.copia=async id=>{const a=P.atividades.find(x=>x.id===id);try{await navigator.clipboard.writeText(a.legenda);toast('Legenda copiada. Cole no Instagram.')}catch(e){prompt('Copie a legenda:',a.legenda)}};
 window.vi=async id=>{const {error}=await sb.rpc('portal_lembrete',{tok:TOK,lembrete:id,marcado:true});if(error)return toast('Sem conexão. Tente de novo.');toast('Anotado 👍');carregar()};
 window.marca=async(id,st)=>{const a=P.atividades.find(x=>x.id===id);let link=null;

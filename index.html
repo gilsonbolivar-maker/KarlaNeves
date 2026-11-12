@@ -27,13 +27,13 @@
 <script src="vendor/supabase.js"></script>
 <script src="comum.js"></script>
 <script>
-const VERSAO='3.0.1';
+const VERSAO='3.1.0';
 // MODO DE TESTE: o painel entra sozinho nesta conta, sem pedir e-mail.
 // Para voltar a pedir login, troque para: const MODO_TESTE=null;
 const MODO_TESTE={email:'painel-teste@karlaneves.app',password:'3dpyPc7S07q_X8tjYHe5YU6r'};
 $('#versao').textContent='v'+VERSAO;
 const sb=window.SB_MOCK||supabase.createClient(KN.URL,KN.CHAVE);
-let S={clientes:[],ativ:[],lemb:[],perfil:{nome:'',zap:''}};
+let S={clientes:[],ativ:[],lemb:[],msgs:[],perfil:{nome:'',zap:''}};
 let VIEW='hoje',CLI=null,BUSCA='',FILTRO_A='abertas',USER=null;
 
 /* ---------- acesso ---------- */
@@ -85,14 +85,15 @@ function traduz(m){m=String(m||'');
 
 /* ---------- dados ---------- */
 async function carregar(){
-  const [c,a,l,p]=await Promise.all([
+  const [c,a,l,p,m]=await Promise.all([
     sb.from('clientes').select('*').order('nome'),
     sb.from('atividades').select('*').order('prazo',{ascending:true,nullsFirst:false}),
     sb.from('lembretes').select('*').order('data',{ascending:true,nullsFirst:false}),
-    sb.from('perfis').select('*').maybeSingle()]);
-  const erro=c.error||a.error||l.error||p.error;
+    sb.from('perfis').select('*').maybeSingle(),
+    sb.from('mensagens').select('*').order('criado',{ascending:true})]);
+  const erro=c.error||a.error||l.error||p.error||m.error;
   if(erro){toast('Erro ao carregar: '+erro.message);return false}
-  S.clientes=c.data||[];S.ativ=a.data||[];S.lemb=l.data||[];
+  S.clientes=c.data||[];S.ativ=a.data||[];S.lemb=l.data||[];S.msgs=m.data||[];
   if(!p.data){const n=await sb.from('perfis').insert({nome:'Karla Neves'}).select().single();S.perfil=n.data||{nome:'Karla Neves',zap:''}}else S.perfil=p.data;
   return true;
 }
@@ -129,6 +130,7 @@ function cardAtiv(a,comCliente){
   let ac='';
   if(a.status!=='feito'&&at)ac+=`<button class="btn z" onclick="cobra('${a.id}')">Cobrar</button>`;
   if(a.status!=='feito'&&!a.visto_em)ac+=`<button class="btn" onclick="avisaNova('${a.id}')">Avisar pelo WhatsApp</button>`;
+  if(a.status!=='pendente')ac+=`<button class="btn v" onclick="formMsg('${a.cliente_id}','parabens','${a.id}')">🎉 Parabenizar</button>`;
   if(a.link_post)ac+=`<a class="btn" href="${esc(a.link_post)}" target="_blank">Ver post</a>`;
   return `<div class="card" style="${a.status==='feito'?'opacity:.75':''}"><div class="row" onclick="formAtiv('${a.id}')">
     <div class="grow">${comCliente?`<div class="nome">${esc(c.nome)}</div>`:''}
@@ -138,8 +140,7 @@ function cardAtiv(a,comCliente){
     <div class="etapas">${passos.map((e,k)=>`<i class="${k<=i?'ok':''}"></i>`).join('')}</div>
     ${ac?`<div class="acoes">${ac}</div>`:''}</div>`;
 }
-window.cobra=id=>{const a=S.ativ.find(x=>x.id===id),c=cli(a.cliente_id);
-  abreZap(c.tel,`Oi, ${c.nome.split(' ')[0]}! Passando para lembrar: "${a.titulo}" estava com prazo ${quando(a.prazo)}. Conseguiu fazer? Se travou em algo, me fala que eu te ajudo 💜\n\nSua página: ${linkCliente(c)}`)};
+window.cobra=id=>{const a=S.ativ.find(x=>x.id===id);formMsg(a.cliente_id,'cobranca',id)};
 window.avisaNova=id=>{const a=S.ativ.find(x=>x.id===id),c=cli(a.cliente_id);
   abreZap(c.tel,`Oi, ${c.nome.split(' ')[0]}! Tem atividade nova na sua página: ${TIPOS[a.tipo]} "${a.titulo}", prazo ${quando(a.prazo)}.\n\nAbra aqui: ${linkCliente(c)}`)};
 
@@ -156,11 +157,17 @@ function vHoje(){
   let o='';
   if(!S.clientes.length)o+=`<div class="card"><b>Como funciona:</b><br>1. Em <b>Clientes</b>, cadastre cada cliente.<br>2. Cada cliente ganha uma <b>página própria</b>. Mande o link para ela.<br>3. Crie atividades e lembretes. Eles aparecem na página dela.<br>4. Quando ela marcar "gravei" ou "postei", você vê aqui.<br><br>Para testar, toque na ⚙️ e carregue os exemplos.</div>`;
   o+=`<div class="resumo" style="margin-top:6px"><div class="card"><b>${abertas.length}</b><span class="sub">em aberto</span></div><div class="card"><b style="color:${atras.length?'var(--verm)':'var(--vinho)'}">${atras.length}</b><span class="sub">atrasadas</span></div><div class="card"><b>${feitasMes.length}</b><span class="sub">feitas no mês${feitasMes.length?' · '+Math.round(noPrazo/feitasMes.length*100)+'% no prazo':''}</span></div></div>`;
+  const naoLidas=S.msgs.filter(m=>m.autor==='cliente'&&!m.lida_em);
+  if(naoLidas.length){const porCli={};naoLidas.forEach(m=>{(porCli[m.cliente_id]=porCli[m.cliente_id]||[]).push(m)});
+    o+=sec('Mensagens novas das clientes',naoLidas.length,Object.entries(porCli).map(([cid,ms])=>{const u=ms[ms.length-1];
+      return `<div class="card" style="border-left:4px solid var(--zap)" onclick="conversa('${cid}')"><div class="row"><div class="grow"><div class="nome">${esc(cli(cid).nome)}${ms.length>1?' · '+ms.length+' mensagens':''}</div>
+      <div class="sub" style="white-space:normal">💬 ${esc(u.texto.slice(0,120))}</div><div class="sub">${haQuanto(u.criado)}</div></div><span class="btn">Abrir</span></div></div>`}).join(''))}
   if(meus.length)o+=sec('Seus lembretes',meus.length,meus.map(cardLemb).join(''));
   o+=sec('O que as clientes fizeram (3 dias)',movimento.length,movimento.slice(0,15).map(a=>{const c=cli(a.cliente_id);
     return `<div class="card" onclick="ir('cliente','${c.id}')"><div class="row"><div class="grow"><div class="nome">${esc(c.nome)}</div>
     <div class="sub" style="white-space:normal">${a.status==='gravado'?'🎥 Gravou':a.tipo==='tarefa'?'✅ Concluiu':'📲 Postou'}: ${esc(a.titulo)} · ${haQuanto(a.atualizado)}</div>
-    ${a.nota_cliente?`<div class="sub">💬 "${esc(a.nota_cliente)}"</div>`:''}</div>${a.link_post?`<a class="btn" href="${esc(a.link_post)}" target="_blank" onclick="event.stopPropagation()">Ver</a>`:''}</div></div>`}).join('')||'<div class="vazio">Nenhuma novidade.</div>');
+    ${a.nota_cliente?`<div class="sub">💬 "${esc(a.nota_cliente)}"</div>`:''}</div></div>
+    <div class="acoes" onclick="event.stopPropagation()"><button class="btn v" onclick="formMsg('${c.id}','parabens','${a.id}')">🎉 Parabenizar</button>${a.link_post?`<a class="btn" href="${esc(a.link_post)}" target="_blank">Ver post</a>`:''}</div></div>`}).join('')||'<div class="vazio">Nenhuma novidade.</div>');
   o+=sec('Atrasadas',atras.length,atras.map(a=>cardAtiv(a,true)).join('')||'<div class="vazio">Nenhuma atrasada. 👏</div>');
   if(breve.length)o+=sec('Vencem até depois de amanhã',breve.length,breve.map(a=>cardAtiv(a,true)).join(''));
   if(sumidas.length)o+=sec('Não abrem a página há 3+ dias',sumidas.length,sumidas.map(c=>`<div class="card"><div class="row"><div class="grow" onclick="ir('cliente','${c.id}')"><div class="nome">${esc(c.nome)}</div><div class="sub">Último acesso: ${haQuanto(c.ultimo_acesso)}</div></div><button class="btn z" onclick="enviaLink('${c.id}')">Mandar link</button></div></div>`).join(''));
@@ -175,7 +182,7 @@ function vClientes(){
   const b=BUSCA.toLowerCase();
   const lista=S.clientes.filter(c=>!b||c.nome.toLowerCase().includes(b)||arroba(c).toLowerCase().includes(b));
   let o=`<input id="busca" placeholder="🔍 Buscar por nome ou @" value="${esc(BUSCA)}" style="margin:4px 0 10px"><div class="sub" style="margin:0 4px 8px">${S.clientes.length} cliente(s)</div>`;
-  o+=lista.map(c=>{const r=resumoCli(c);return `<div class="card" onclick="ir('cliente','${c.id}')"><div class="row"><div class="grow"><div class="nome">${esc(c.nome)}</div>
+  o+=lista.map(c=>{const r=resumoCli(c);const nl=S.msgs.filter(m=>m.cliente_id===c.id&&m.autor==='cliente'&&!m.lida_em).length;return `<div class="card" onclick="ir('cliente','${c.id}')"><div class="row"><div class="grow"><div class="nome">${esc(c.nome)}${nl?` <span class="tag" style="background:var(--zap);color:#fff">💬 ${nl} nova(s)</span>`:''}</div>
     <div class="sub">${arroba(c)?'@'+esc(arroba(c))+' · ':''}${r.ab} em aberto${r.at?` · <b style="color:var(--verm)">${r.at} atrasada(s)</b>`:''} · ${r.fm} feita(s) no mês</div>
     <div class="sub">Abriu a página: ${haQuanto(c.ultimo_acesso)}</div></div><span style="font-weight:800;color:var(--verde)">${r.pct}%</span></div>
     <div class="barra"><i style="width:${r.pct}%"></i></div></div>`}).join('')||'<div class="vazio">Nenhuma cliente. Toque em <b>+ Cliente</b>.</div>';
@@ -189,6 +196,7 @@ function vCliente(){
   const F={abertas:a=>a.status!=='feito',feitas:a=>a.status==='feito'};
   const lista=as.filter(F[FILTRO_A]).sort((x,y)=>FILTRO_A==='feitas'?(y.feito_em||'').localeCompare(x.feito_em||''):(x.prazo||'9999').localeCompare(y.prazo||'9999'));
   const lb=S.lemb.filter(l=>l.cliente_id===c.id&&(!l.feito||(Date.now()-new Date(l.feito_em||0))<7*864e5));
+  const ms=S.msgs.filter(m=>m.cliente_id===c.id);marcaLidas(c.id);
   $('#main').innerHTML=`<button class="voltar" onclick="ir('clientes')">‹ Clientes</button>
   <div class="card"><div class="row"><div class="grow"><div class="nome" style="font-size:19px">${esc(c.nome)}</div>
   <div class="sub">${arroba(c)?`<a href="https://instagram.com/${esc(arroba(c))}" target="_blank">@${esc(arroba(c))}</a> · `:''}${c.tel?esc(c.tel):'sem WhatsApp'}</div>
@@ -197,6 +205,10 @@ function vCliente(){
   <div class="acoes"><button class="btn z" onclick="enviaLink('${c.id}')">Mandar link da página</button><a class="btn" href="${esc(linkCliente(c))}" target="_blank">👁️ Ver como ela vê</a>
   <button class="btn" onclick="copiaLink('${c.id}')">Copiar link</button><button class="btn" onclick="formCliente('${c.id}')">Editar</button></div></div>
   <div class="resumo"><div class="card"><b>${r.ab}</b><span class="sub">em aberto</span></div><div class="card"><b style="color:${r.at?'var(--verm)':'var(--vinho)'}">${r.at}</b><span class="sub">atrasadas</span></div><div class="card"><b>${r.fm}</b><span class="sub">feitas no mês</span></div></div>
+  <h2>Mensagens${ms.length?`<span class="n">${ms.length}</span>`:''}</h2>
+  <div class="card">${ms.slice(-3).map(bolha).join('')||'<div class="vazio">Nenhuma mensagem ainda.</div>'}
+  <div class="chips" style="margin-top:8px"><button class="chip" onclick="formMsg('${c.id}','cobranca')">⏰ Cobrar</button><button class="chip" onclick="formMsg('${c.id}','parabens')">🎉 Parabenizar</button><button class="chip" onclick="formMsg('${c.id}','lembrete')">📌 Lembrete</button><button class="chip" onclick="formMsg('${c.id}')">💬 Mensagem</button></div>
+  ${ms.length>3?`<div class="acoes"><button class="btn full" onclick="conversa('${c.id}')">Ver conversa inteira</button></div>`:''}</div>
   <h2>Atividades</h2>
   <div class="chips" style="margin:0 2px 8px"><button class="chip ${FILTRO_A==='abertas'?'on':''}" onclick="FILTRO_A='abertas';render()">Em aberto (${as.filter(F.abertas).length})</button><button class="chip ${FILTRO_A==='feitas'?'on':''}" onclick="FILTRO_A='feitas';render()">Feitas (${as.filter(F.feitas).length})</button></div>
   ${lista.map(a=>cardAtiv(a,false)).join('')||'<div class="vazio">Nada aqui. Toque em <b>+ Atividade</b>.</div>'}
@@ -270,6 +282,47 @@ window.formAtiv=(aid,cidPre)=>{
   if(aid)$('#aDel').onclick=async()=>{if(!confirm('Apagar esta atividade?'))return;if(await grava(sb.from('atividades').delete().eq('id',aid),'Apagada'))fecha()};
 };
 
+/* ---------- MENSAGENS ---------- */
+const TIPO_MSG={mensagem:'💬 Mensagem',cobranca:'⏰ Cobrança',parabens:'🎉 Parabéns',lembrete:'📌 Lembrete'};
+const COR_MSG={mensagem:'',cobranca:'s-atrasada',parabens:'s-feito',lembrete:'s-pendente'};
+function modeloMsg(tipo,c,a){const n=(c.nome||'').split(' ')[0];const t=a?`"${a.titulo}"`:'';
+  if(tipo==='cobranca')return a?`Oi, ${n}! Como está o ${t}? ${atrasada(a)?'O prazo era '+quando(a.prazo):'O prazo é '+quando(a.prazo)}. Se travou em alguma parte, me conta aqui que eu te ajudo 💜`:`Oi, ${n}! Faz uns dias que não vejo movimento na sua página. Como estão as atividades? Me conta aqui 💜`;
+  if(tipo==='parabens')return a?`Parabéns, ${n}! 🎉 Ficou ótimo o ${t}. Continue nesse ritmo!`:`Parabéns, ${n}! 🎉 Você está mandando muito bem. Continue assim!`;
+  if(tipo==='lembrete')return a?`Lembrete, ${n}: ${t} tem prazo ${quando(a.prazo)}. Não esquece! ⏰`:`Lembrete, ${n}: `;
+  return `Oi, ${n}! `}
+function bolha(m,lado){const minha=m.autor==='karla';const a=m.atividade_id?S.ativ.find(x=>x.id===m.atividade_id):null;
+  return `<div style="display:flex;justify-content:${minha?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:85%;background:${minha?'#f3e6ec':'#fff'};border:1px solid var(--linha);border-radius:14px;padding:9px 11px">
+  ${m.tipo!=='mensagem'?`<span class="tag ${COR_MSG[m.tipo]}" style="margin-bottom:4px">${TIPO_MSG[m.tipo]}</span>`:''}
+  ${a?`<div class="sub">sobre: ${esc(a.titulo)}</div>`:''}
+  <div style="white-space:pre-wrap">${esc(m.texto)}</div>
+  <div class="sub" style="font-size:12px;text-align:right">${minha?'Você':esc(cli(m.cliente_id).nome.split(' ')[0])} · ${haQuanto(m.criado)}${minha?(m.lida_em?' · ✓ lida':' · não lida'):''}</div></div></div>`}
+window.formMsg=(cid,tipo,aid)=>{
+  const c=cli(cid);tipo=tipo||'mensagem';let editou=false;
+  const ativs=S.ativ.filter(a=>a.cliente_id===cid&&(a.status!=='feito'||(Date.now()-new Date(a.feito_em||0))<14*864e5));
+  abre(`<h3>Mensagem para ${esc(c.nome.split(' ')[0])}</h3>
+  <div class="sub">Aparece na página dela.</div>
+  <label>Tipo</label><div class="chips" id="mTipo">${Object.entries(TIPO_MSG).map(([k,v])=>`<button class="chip ${tipo===k?'on':''}" data-t="${k}">${v}</button>`).join('')}</div>
+  <label>Sobre qual atividade (opcional)</label><select id="mAtiv"><option value="">Nenhuma em especial</option>${ativs.map(a=>`<option value="${a.id}" ${a.id===aid?'selected':''}>${esc(a.titulo)}${a.status==='feito'?' (feita)':atrasada(a)?' (atrasada)':''}</option>`).join('')}</select>
+  <label>Mensagem</label><textarea id="mTxt" style="min-height:130px"></textarea>
+  <label style="font-weight:600"><input type="checkbox" id="mZap" style="width:auto;vertical-align:middle"> Também avisar no WhatsApp que tem mensagem nova</label>
+  <div class="acoes"><button class="btn p full" id="mOk">Enviar para a página dela</button></div>`);
+  const preenche=()=>{if(editou)return;const a=S.ativ.find(x=>x.id===$('#mAtiv').value);$('#mTxt').value=modeloMsg(tipo,c,a)};
+  preenche();$('#mTxt').oninput=()=>editou=true;$('#mAtiv').onchange=preenche;
+  document.querySelectorAll('#mTipo .chip').forEach(b=>b.onclick=()=>{tipo=b.dataset.t;document.querySelectorAll('#mTipo .chip').forEach(x=>x.classList.toggle('on',x===b));editou=false;preenche()});
+  $('#mOk').onclick=async()=>{const texto=$('#mTxt').value.trim();if(!texto)return toast('Escreva a mensagem');$('#mOk').disabled=true;
+    const zap=$('#mZap').checked;
+    const ok=await grava(sb.from('mensagens').insert({cliente_id:cid,tipo,texto,atividade_id:$('#mAtiv').value||null}),'Mensagem enviada para a página dela');
+    if(!ok){$('#mOk').disabled=false;return}fecha();
+    if(zap)abreZap(c.tel,`Oi, ${c.nome.split(' ')[0]}! Te deixei uma mensagem na sua página:\n\n${linkCliente(c)}`)};
+};
+window.conversa=cid=>{const c=cli(cid);const ms=S.msgs.filter(m=>m.cliente_id===cid);
+  abre(`<h3>Conversa com ${esc(c.nome.split(' ')[0])}</h3>${ms.map(bolha).join('')||'<div class="vazio">Nenhuma mensagem ainda.</div>'}
+  <div class="acoes" style="position:sticky;bottom:0;background:var(--creme);padding-top:8px"><button class="btn p full" onclick="formMsg('${cid}')">✉️ Nova mensagem</button></div>`);
+  setTimeout(()=>{$('#sbox').scrollTop=$('#sbox').scrollHeight},30);marcaLidas(cid)};
+async function marcaLidas(cid){if(!S.msgs.some(m=>m.cliente_id===cid&&m.autor==='cliente'&&!m.lida_em))return;
+  const agora=new Date().toISOString();S.msgs.forEach(m=>{if(m.cliente_id===cid&&m.autor==='cliente'&&!m.lida_em)m.lida_em=agora});
+  await sb.from('mensagens').update({lida_em:agora}).eq('cliente_id',cid).eq('autor','cliente').is('lida_em',null)}
+
 /* ---------- LEMBRETES ---------- */
 function cardLemb(l){const c=l.cliente_id?cli(l.cliente_id):null;const at=l.data&&l.data<hojeISO()&&!l.feito;
   return `<div class="card" style="${l.feito?'opacity:.6':''}"><div class="row">
@@ -339,7 +392,15 @@ async function carregaExemplo(){
     {texto:'Poste até as 19h, é o melhor horário do seu perfil',cliente_id:by(0),data:h,demo:true},{texto:'Lembre de responder os directs depois do post',cliente_id:by(4),demo:true,feito:true,feito_em:ts(4)},
     {texto:'Grave com luz natural, perto da janela',cliente_id:by(1),demo:true}];
   const e3=(await sb.from('lembretes').insert(lb)).error;
-  if(e2||e3)toast('Erro: '+(e2||e3).message);
+  const ats=(await sb.from('atividades').select('*').eq('demo',true)).data||[];const aq=t=>(ats.find(x=>x.titulo===t)||{}).id||null;
+  const mg=[{cliente_id:by(0),autor:'karla',tipo:'cobranca',texto:'Oi, Ana! Como está o "Antes e depois da semana"? O prazo era anteontem. Se travou em alguma parte, me conta aqui 💜',atividade_id:aq('Antes e depois da semana'),criado:ts(30),demo:true},
+    {cliente_id:by(0),autor:'cliente',tipo:'mensagem',texto:'Oi Karla! Travei na hora de falar o problema da cliente, fico sem jeito. Pode me ajudar?',criado:ts(3),demo:true},
+    {cliente_id:by(9),autor:'karla',tipo:'parabens',texto:'Parabéns, Juliana! 🎉 Ficou ótimo o "Protetor solar". Continue nesse ritmo!',atividade_id:aq('Protetor solar'),criado:ts(26),lida_em:ts(20),demo:true},
+    {cliente_id:by(9),autor:'cliente',tipo:'mensagem',texto:'Obrigada!! Já estou com ideia para o próximo 😍',criado:ts(19),lida_em:ts(18),demo:true},
+    {cliente_id:by(1),autor:'cliente',tipo:'mensagem',texto:'Posso postar o bolo no sábado em vez de hoje?',criado:ts(1),demo:true},
+    {cliente_id:by(6),autor:'karla',tipo:'lembrete',texto:'Lembrete, Gabriela: grave o "Make em 1 minuto" com luz de frente, perto da janela ⏰',atividade_id:aq('Make em 1 minuto'),criado:ts(10),demo:true}];
+  const e4=(await sb.from('mensagens').insert(mg)).error;
+  if(e2||e3||e4)toast('Erro: '+(e2||e3||e4).message);
   await carregar();ir('hoje');toast('10 clientes de exemplo criadas');
 }
 async function apagaExemplo(){if(!confirm('Apagar as clientes de exemplo e tudo delas? As reais ficam.'))return;
